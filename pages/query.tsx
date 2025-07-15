@@ -1,10 +1,14 @@
+import type { ReactElement } from 'react';
 import { SOQLQueryTool } from '../components/SOQLQueryTool';
-import { WorkbenchLayout } from '../components/WorkbenchLayout';
+import { AuthenticatedLayout } from '../layouts/AuthenticatedLayout';
+import type { NextPageWithLayout } from '../types/layout';
 
-export default function QueryPage() {
-  return (
-    <WorkbenchLayout>
-      <SOQLQueryTool />
-    </WorkbenchLayout>
-  );
-}
+const QueryPage: NextPageWithLayout = () => {
+  return <SOQLQueryTool />;
+};
+
+QueryPage.getLayout = function getLayout(page: ReactElement) {
+  return <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+};
+
+export default QueryPage;

@@ -2,7 +2,7 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/code-highlight/styles.css';
 
-import type { AppProps } from 'next/app';
+import type { ReactElement } from 'react';
 import Head from 'next/head';
 import hljs from 'highlight.js/lib/core';
 import sqlLang from 'highlight.js/lib/languages/sql';
@@ -10,12 +10,16 @@ import { CodeHighlightAdapterProvider, createHighlightJsAdapter } from '@mantine
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { theme } from '../theme';
+import type { AppPropsWithLayout } from '../types/layout';
 
 hljs.registerLanguage('sql', sqlLang);
 
 const highlightJsAdapter = createHighlightJsAdapter(hljs);
 
-export default function App({ Component, pageProps }: AppProps) {
+export default function App({ Component, pageProps }: AppPropsWithLayout) {
+  // Use the layout defined at the page level, if available
+  const getLayout = Component.getLayout ?? ((page: ReactElement) => page);
+
   return (
     <MantineProvider theme={theme}>
       <CodeHighlightAdapterProvider adapter={highlightJsAdapter}>
@@ -28,7 +32,7 @@ export default function App({ Component, pageProps }: AppProps) {
           <link rel="shortcut icon" href="/favicon.svg" />
         </Head>
         <Notifications />
-        <Component {...pageProps} />
+        {getLayout(<Component {...pageProps} />)}
       </CodeHighlightAdapterProvider>
     </MantineProvider>
   );
