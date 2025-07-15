@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import hljs from 'highlight.js/lib/core';
-import { Box, useMantineColorScheme, useMantineTheme } from '@mantine/core';
+import { useEffect, useMemo, useRef } from 'react';
+import { useHighlight } from '@mantine/code-highlight';
+import { Box, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 
 interface EditableCodeHighlightProps {
   value: string;
@@ -19,21 +19,14 @@ export function EditableCodeHighlight({
   minRows = 6,
   maxRows = 12,
 }: EditableCodeHighlightProps) {
-  const { colorScheme } = useMantineColorScheme();
   const theme = useMantineTheme();
+  const colorScheme = useComputedColorScheme();
+  const highlight = useHighlight();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const highlightRef = useRef<HTMLPreElement>(null);
-  const [isFocused, setIsFocused] = useState(false);
-
-  // Theme-aware colors
-  const colors = {
-    keyword: colorScheme === 'dark' ? '#569cd6' : '#0000ff',
-    string: colorScheme === 'dark' ? '#ce9178' : '#a31515',
-    number: colorScheme === 'dark' ? '#b5cea8' : '#098658',
-    comment: colorScheme === 'dark' ? '#6a9955' : '#008000',
-    builtin: colorScheme === 'dark' ? '#4ec9b0' : '#267f99',
-    literal: colorScheme === 'dark' ? '#569cd6' : '#0000ff',
-  };
+  const highlightRef = useRef<HTMLElement>(null);
+  const isLight = useMemo(() => {
+    return colorScheme === 'light';
+  }, [colorScheme]);
 
   // Sync scroll between textarea and highlight layer
   const handleScroll = () => {
@@ -43,54 +36,12 @@ export function EditableCodeHighlight({
     }
   };
 
-  // Apply syntax highlighting with colors
-  const highlightedCode = () => {
-    if (!value.trim()) {
-      return '';
-    }
-    try {
-      let highlighted = hljs.highlight(value, { language }).value;
-
-      // Apply custom colors by replacing class attributes with inline styles
-      highlighted = highlighted
-        .replace(/class="hljs-keyword"/g, `style="color: ${colors.keyword}; font-weight: bold;"`)
-        .replace(/class="hljs-string"/g, `style="color: ${colors.string};"`)
-        .replace(/class="hljs-number"/g, `style="color: ${colors.number};"`)
-        .replace(/class="hljs-comment"/g, `style="color: ${colors.comment}; font-style: italic;"`)
-        .replace(/class="hljs-built_in"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-type"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-literal"/g, `style="color: ${colors.literal}; font-weight: bold;"`)
-        .replace(/class="hljs-name"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-attribute"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-function"/g, `style="color: ${colors.builtin}; font-weight: bold;"`)
-        .replace(/class="hljs-title"/g, `style="color: ${colors.builtin}; font-weight: bold;"`)
-        .replace(/class="hljs-operator"/g, `style="color: ${colors.keyword}; font-weight: bold;"`)
-        .replace(/class="hljs-symbol"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-variable"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-params"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-quote"/g, `style="color: ${colors.comment}; font-style: italic;"`)
-        .replace(/class="hljs-tag"/g, `style="color: ${colors.keyword};"`)
-        .replace(/class="hljs-selector-tag"/g, `style="color: ${colors.keyword};"`)
-        .replace(/class="hljs-selector-id"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-selector-class"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-property"/g, `style="color: ${colors.builtin};"`)
-        .replace(/class="hljs-value"/g, `style="color: ${colors.string};"`)
-        .replace(/class="hljs-regexp"/g, `style="color: ${colors.string};"`)
-        .replace(/class="hljs-meta"/g, `style="color: ${colors.comment};"`)
-        .replace(/class="hljs-doctag"/g, `style="color: ${colors.comment}; font-weight: bold;"`)
-        .replace(/class="hljs-section"/g, `style="color: ${colors.keyword}; font-weight: bold;"`)
-        .replace(/class="hljs-strong"/g, `style="font-weight: bold;"`)
-        .replace(/class="hljs-emphasis"/g, `style="font-style: italic;"`)
-        .replace(
-          /class="hljs-link"/g,
-          `style="color: ${colors.builtin}; text-decoration: underline;"`
-        );
-
-      return highlighted;
-    } catch {
-      return hljs.highlightAuto(value).value;
-    }
-  };
+  // Use the same highlighting as CodeHighlight component
+  const highlightedCode = highlight({
+    code: value.trim(),
+    language,
+    colorScheme,
+  });
 
   // Auto-resize textarea
   useEffect(() => {
@@ -106,43 +57,38 @@ export function EditableCodeHighlight({
     }
   }, [value, minRows, maxRows]);
 
-  const borderColor = isFocused
-    ? theme.colors.blue[6]
-    : colorScheme === 'dark'
-      ? theme.colors.dark[4]
-      : theme.colors.gray[4];
+  const backgroundColor = isLight ? theme.colors.gray[0] : theme.colors.dark[8];
+  const placeholderColor = theme.colors.gray[5];
+  const textColor = theme.colors.gray[7];
 
-  const backgroundColor = colorScheme === 'dark' ? theme.colors.dark[6] : theme.white;
-
-  const textColor = colorScheme === 'dark' ? theme.colors.dark[0] : theme.colors.gray[7];
-
-  const placeholderColor = colorScheme === 'dark' ? theme.colors.dark[2] : theme.colors.gray[5];
+  const codeContent = highlightedCode.isHighlighted
+    ? { dangerouslySetInnerHTML: { __html: highlightedCode.highlightedCode } }
+    : { children: value.trim() };
 
   return (
     <Box
       style={{
         position: 'relative',
-        border: `1px solid ${borderColor}`,
         borderRadius: theme.radius.sm,
         backgroundColor,
         overflow: 'hidden',
         transition: 'border-color 150ms ease',
       }}
     >
-      {/* Syntax highlighted background */}
-      <pre
+      {/* Syntax highlighted background - uses exact same approach as CodeHighlight */}
+      <code
         ref={highlightRef}
+        {...highlightedCode.codeElementProps}
         style={{
           position: 'absolute',
           top: 0,
           left: 0,
           margin: 0,
-          padding: '12px',
+          padding: 'var(--mantine-spacing-xs)',
           width: '100%',
           height: '100%',
-          fontSize: '14px',
-          fontFamily:
-            'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Menlo, "Liberation Mono", "Roboto Mono", Consolas, "Courier New", monospace',
+          fontSize: 'var(--mantine-font-size-sm)',
+          fontFamily: 'var(--mantine-font-family-monospace)',
           lineHeight: '20px',
           backgroundColor: 'transparent',
           border: 'none',
@@ -151,10 +97,10 @@ export function EditableCodeHighlight({
           pointerEvents: 'none',
           whiteSpace: 'pre-wrap',
           wordWrap: 'break-word',
+          display: 'block',
+          ...highlightedCode.codeElementProps?.style,
         }}
-        dangerouslySetInnerHTML={{
-          __html: highlightedCode(),
-        }}
+        {...codeContent}
       />
 
       {/* Editable textarea overlay */}
@@ -162,19 +108,16 @@ export function EditableCodeHighlight({
         ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
         onScroll={handleScroll}
         placeholder={placeholder}
         style={{
           position: 'relative',
           zIndex: 1,
           margin: 0,
-          padding: '12px',
+          padding: 'var(--mantine-spacing-xs)',
           width: '100%',
-          fontSize: '14px',
-          fontFamily:
-            'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Menlo, "Liberation Mono", "Roboto Mono", Consolas, "Courier New", monospace',
+          fontSize: 'var(--mantine-font-size-sm)',
+          fontFamily: 'var(--mantine-font-family-monospace)',
           lineHeight: '20px',
           color: value ? 'transparent' : placeholderColor,
           backgroundColor: 'transparent',
