@@ -1,26 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import {
   AppShell,
-  Container,
-  Title,
-  Text,
-  Button,
   Group,
   Avatar,
   Menu,
-  Stack,
-  Card,
-  Badge,
+  Button,
+  Text,
+  Title,
   LoadingOverlay,
   NavLink,
   ScrollArea,
+  Stack,
 } from '@mantine/core';
 import { IconLogout, IconUser, IconSettings, IconChevronDown, IconCode, IconSearch, IconApi, IconDatabase, IconHome } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import type { AuthSession } from '../types/salesforce';
 
-export function Dashboard() {
+interface WorkbenchLayoutProps {
+  children: ReactNode;
+}
+
+export function WorkbenchLayout({ children }: WorkbenchLayoutProps) {
   const router = useRouter();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -193,86 +194,7 @@ export function Dashboard() {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        <Container size="lg">
-          <Stack gap="lg">
-            <div>
-              <Title order={1} mb="xs">
-                Welcome, {session.user.first_name}!
-              </Title>
-              <Text c="dimmed">
-                You're connected to your Salesforce org
-              </Text>
-            </div>
-
-            <Card withBorder shadow="sm" padding="lg" radius="md">
-              <Stack gap="md">
-                <Group justify="space-between">
-                  <Title order={3}>Connection Details</Title>
-                  <Badge color="green" variant="light">
-                    Connected
-                  </Badge>
-                </Group>
-                
-                <div>
-                  <Text size="sm" c="dimmed" mb="xs">
-                    Organization
-                  </Text>
-                  <Text>{session.user.organization_id}</Text>
-                </div>
-                
-                <div>
-                  <Text size="sm" c="dimmed" mb="xs">
-                    Instance URL
-                  </Text>
-                  <Text>{session.instanceUrl}</Text>
-                </div>
-                
-                <div>
-                  <Text size="sm" c="dimmed" mb="xs">
-                    Username
-                  </Text>
-                  <Text>{session.user.username}</Text>
-                </div>
-                
-                <div>
-                  <Text size="sm" c="dimmed" mb="xs">
-                    User Type
-                  </Text>
-                  <Text>{session.user.user_type}</Text>
-                </div>
-              </Stack>
-            </Card>
-
-            <Card withBorder shadow="sm" padding="lg" radius="md">
-              <Title order={3} mb="md">
-                Quick Actions
-              </Title>
-              <Group>
-                <Button 
-                  variant="light" 
-                  leftSection={<IconCode size={16} />}
-                  onClick={() => router.push('/query')}
-                >
-                  Query Data
-                </Button>
-                <Button 
-                  variant="light" 
-                  leftSection={<IconSearch size={16} />}
-                  disabled
-                >
-                  Object Inspector
-                </Button>
-                <Button 
-                  variant="light" 
-                  leftSection={<IconApi size={16} />}
-                  disabled
-                >
-                  REST Explorer
-                </Button>
-              </Group>
-            </Card>
-          </Stack>
-        </Container>
+        {children}
       </AppShell.Main>
     </AppShell>
   );

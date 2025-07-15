@@ -3569,6 +3569,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@mantine/code-highlight@npm:8.1.2":
+  version: 8.1.2
+  resolution: "@mantine/code-highlight@npm:8.1.2"
+  dependencies:
+    clsx: "npm:^2.1.1"
+    highlight.js: "npm:^11.10.0"
+  peerDependencies:
+    "@mantine/core": 8.1.2
+    "@mantine/hooks": 8.1.2
+    react: ^18.x || ^19.x
+    react-dom: ^18.x || ^19.x
+  checksum: 10c0/6ae939a378b99e9166a2b903c8cdb81bc14ba71346fded11ba63d4c823a7d4c5d944d21052c9da35eb4bffe439cc160ee34462fac4417df245d73ccc75bf2d2c
+  languageName: node
+  linkType: hard
+
 "@mantine/core@npm:8.1.2":
   version: 8.1.2
   resolution: "@mantine/core@npm:8.1.2"
@@ -9789,6 +9804,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"highlight.js@npm:^11.10.0":
+  version: 11.11.1
+  resolution: "highlight.js@npm:11.11.1"
+  checksum: 10c0/40f53ac19dac079891fcefd5bd8a21cf2e8931fd47da5bd1dca73b7e4375c1defed0636fc39120c639b9c44119b7d110f7f0c15aa899557a5a1c8910f3c0144c
+  languageName: node
+  linkType: hard
+
 "hmac-drbg@npm:^1.0.1":
   version: 1.0.1
   resolution: "hmac-drbg@npm:1.0.1"
@@ -11810,6 +11832,7 @@ __metadata:
     "@babel/core": "npm:^7.27.4"
     "@eslint/js": "npm:^9.29.0"
     "@ianvs/prettier-plugin-sort-imports": "npm:^4.4.2"
+    "@mantine/code-highlight": "npm:8.1.2"
     "@mantine/core": "npm:8.1.2"
     "@mantine/hooks": "npm:8.1.2"
     "@mantine/notifications": "npm:8.1.2"
