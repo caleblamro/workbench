@@ -1,0 +1,193 @@
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import {
+  AppShell,
+  Container,
+  Title,
+  Text,
+  Button,
+  Group,
+  Avatar,
+  Menu,
+  Stack,
+  Card,
+  Badge,
+  LoadingOverlay,
+} from '@mantine/core';
+import { IconLogout, IconUser, IconSettings, IconChevronDown } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import type { AuthSession } from '../types/salesforce';
+
+export function Dashboard() {
+  const router = useRouter();
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuthentication();
+  }, []);
+
+  const checkAuthentication = async () => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const sessionData = await response.json();
+        setSession(sessionData);
+      } else {
+        router.push('/');
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      router.push('/');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      notifications.show({
+        title: 'Logged out',
+        message: 'You have been successfully logged out',
+        color: 'green',
+      });
+      router.push('/');
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to logout',
+        color: 'red',
+      });
+    }
+  };
+
+  if (loading) {
+    return <LoadingOverlay visible />;
+  }
+
+  if (!session) {
+    return null;
+  }
+
+  return (
+    <AppShell
+      header={{ height: 60 }}
+      padding="md"
+    >
+      <AppShell.Header p="md">
+        <Group justify="space-between">
+          <Group>
+            <Title order={3}>Workbench</Title>
+          </Group>
+          
+          <Menu shadow="md" width={200}>
+            <Menu.Target>
+              <Button
+                variant="subtle"
+                rightSection={<IconChevronDown size={16} />}
+              >
+                <Group gap="xs">
+                  <Avatar
+                    src={session.user.photos?.thumbnail}
+                    size={24}
+                    radius="xl"
+                  />
+                  <Text size="sm">{session.user.display_name}</Text>
+                </Group>
+              </Button>
+            </Menu.Target>
+
+            <Menu.Dropdown>
+              <Menu.Item leftSection={<IconUser size={14} />}>
+                Profile
+              </Menu.Item>
+              <Menu.Item leftSection={<IconSettings size={14} />}>
+                Settings
+              </Menu.Item>
+              <Menu.Divider />
+              <Menu.Item
+                leftSection={<IconLogout size={14} />}
+                color="red"
+                onClick={handleLogout}
+              >
+                Logout
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </Group>
+      </AppShell.Header>
+
+      <AppShell.Main>
+        <Container size="lg">
+          <Stack gap="lg">
+            <div>
+              <Title order={1} mb="xs">
+                Welcome, {session.user.first_name}!
+              </Title>
+              <Text c="dimmed">
+                You're connected to your Salesforce org
+              </Text>
+            </div>
+
+            <Card withBorder shadow="sm" padding="lg" radius="md">
+              <Stack gap="md">
+                <Group justify="space-between">
+                  <Title order={3}>Connection Details</Title>
+                  <Badge color="green" variant="light">
+                    Connected
+                  </Badge>
+                </Group>
+                
+                <div>
+                  <Text size="sm" c="dimmed" mb="xs">
+                    Organization
+                  </Text>
+                  <Text>{session.user.organization_id}</Text>
+                </div>
+                
+                <div>
+                  <Text size="sm" c="dimmed" mb="xs">
+                    Instance URL
+                  </Text>
+                  <Text>{session.instanceUrl}</Text>
+                </div>
+                
+                <div>
+                  <Text size="sm" c="dimmed" mb="xs">
+                    Username
+                  </Text>
+                  <Text>{session.user.username}</Text>
+                </div>
+                
+                <div>
+                  <Text size="sm" c="dimmed" mb="xs">
+                    User Type
+                  </Text>
+                  <Text>{session.user.user_type}</Text>
+                </div>
+              </Stack>
+            </Card>
+
+            <Card withBorder shadow="sm" padding="lg" radius="md">
+              <Title order={3} mb="md">
+                Quick Actions
+              </Title>
+              <Group>
+                <Button variant="light">
+                  Query Data
+                </Button>
+                <Button variant="light">
+                  Object Inspector
+                </Button>
+                <Button variant="light">
+                  REST Explorer
+                </Button>
+              </Group>
+            </Card>
+          </Stack>
+        </Container>
+      </AppShell.Main>
+    </AppShell>
+  );
+}

@@ -1,11 +1,9 @@
-import { ColorSchemeToggle } from '../components/ColorSchemeToggle/ColorSchemeToggle';
-import { Welcome } from '../components/Welcome/Welcome';
+import { useRouter } from 'next/router';
+import { LoginPage } from '../components/LoginPage';
 
 export default function HomePage() {
-  return (
-    <>
-      <Welcome />
-      <ColorSchemeToggle />
-    </>
-  );
+  const router = useRouter();
+  const { error } = router.query;
+
+  return <LoginPage error={error as string} />;
 }
