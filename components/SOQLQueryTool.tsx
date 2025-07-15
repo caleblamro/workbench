@@ -24,12 +24,12 @@ import {
   Table,
   Tabs,
   Text,
-  Textarea,
   Title,
   Tooltip,
 } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
+import { EditableCodeHighlight } from './EditableCodeHighlight';
 
 interface QueryResult {
   totalSize: number;
@@ -76,6 +76,98 @@ const EXAMPLE_QUERIES = [
     description: 'Query custom objects (replace with your custom object)',
   },
 ];
+
+const exportToCSV = ({ result }: { result: QueryResult }) => {
+  if (!result || !result.records.length) {
+    return;
+  }
+
+  const headers = Object.keys(result.records[0]);
+  const csvContent = [
+    headers.join(','),
+    ...result.records.map((record) =>
+      headers
+        .map((header) => {
+          const value = record[header];
+          if (value === null || value === undefined) {
+            return '';
+          }
+          if (typeof value === 'object') {
+            return JSON.stringify(value);
+          }
+          return `"${String(value).replace(/"/g, '""')}"`;
+        })
+        .join(',')
+    ),
+  ].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `soql-results-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const renderResultTable = ({ result }: { result: QueryResult }) => {
+  if (!result || !result.records.length) {
+    return null;
+  }
+
+  const headers = Object.keys(result.records[0]);
+
+  return (
+    <Card withBorder>
+      <Group justify="space-between" mb="md">
+        <div>
+          <Text fw={500}>Query Results</Text>
+          <Text size="sm" c="dimmed">
+            {result.totalSize} records found
+            {!result.done && ' (showing first batch)'}
+          </Text>
+        </div>
+        <Group>
+          <Button
+            size="sm"
+            variant="light"
+            leftSection={<IconDownload size={16} />}
+            onClick={() => exportToCSV({ result })}
+          >
+            Export CSV
+          </Button>
+        </Group>
+      </Group>
+
+      <ScrollArea>
+        <Table striped highlightOnHover>
+          <Table.Thead>
+            <Table.Tr>
+              {headers.map((header) => (
+                <Table.Th key={header}>{header}</Table.Th>
+              ))}
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {result.records.map((record, index) => (
+              <Table.Tr key={index}>
+                {headers.map((header) => (
+                  <Table.Td key={header}>
+                    {record[header] === null || record[header] === undefined
+                      ? ''
+                      : typeof record[header] === 'object'
+                        ? JSON.stringify(record[header])
+                        : String(record[header])}
+                  </Table.Td>
+                ))}
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </ScrollArea>
+    </Card>
+  );
+};
 
 export function SOQLQueryTool() {
   const [query, setQuery] = useState('');
@@ -168,39 +260,6 @@ export function SOQLQueryTool() {
     });
   };
 
-  const exportToCSV = () => {
-    if (!result || !result.records.length) {
-      return;
-    }
-
-    const headers = Object.keys(result.records[0]);
-    const csvContent = [
-      headers.join(','),
-      ...result.records.map((record) =>
-        headers
-          .map((header) => {
-            const value = record[header];
-            if (value === null || value === undefined) {
-              return '';
-            }
-            if (typeof value === 'object') {
-              return JSON.stringify(value);
-            }
-            return `"${String(value).replace(/"/g, '""')}"`;
-          })
-          .join(',')
-      ),
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `soql-results-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const loadExampleQuery = (exampleQuery: string) => {
     setQuery(exampleQuery);
     setError(null);
@@ -220,65 +279,6 @@ export function SOQLQueryTool() {
       message: 'Query history has been cleared',
       color: 'blue',
     });
-  };
-
-  const renderResultTable = () => {
-    if (!result || !result.records.length) {
-      return null;
-    }
-
-    const headers = Object.keys(result.records[0]);
-
-    return (
-      <Card withBorder>
-        <Group justify="space-between" mb="md">
-          <div>
-            <Text fw={500}>Query Results</Text>
-            <Text size="sm" c="dimmed">
-              {result.totalSize} records found
-              {!result.done && ' (showing first batch)'}
-            </Text>
-          </div>
-          <Group>
-            <Button
-              size="sm"
-              variant="light"
-              leftSection={<IconDownload size={16} />}
-              onClick={exportToCSV}
-            >
-              Export CSV
-            </Button>
-          </Group>
-        </Group>
-
-        <ScrollArea>
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                {headers.map((header) => (
-                  <Table.Th key={header}>{header}</Table.Th>
-                ))}
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {result.records.map((record, index) => (
-                <Table.Tr key={index}>
-                  {headers.map((header) => (
-                    <Table.Td key={header}>
-                      {record[header] === null || record[header] === undefined
-                        ? ''
-                        : typeof record[header] === 'object'
-                          ? JSON.stringify(record[header])
-                          : String(record[header])}
-                    </Table.Td>
-                  ))}
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </ScrollArea>
-      </Card>
-    );
   };
 
   return (
@@ -332,19 +332,13 @@ export function SOQLQueryTool() {
                   </Group>
                 </Group>
 
-                <Textarea
-                  placeholder="Enter your SOQL query here..."
+                <EditableCodeHighlight
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(value) => setQuery(value)}
+                  language="sql"
+                  placeholder="Enter your SOQL query here..."
                   minRows={6}
                   maxRows={12}
-                  autosize
-                  styles={{
-                    input: {
-                      fontFamily: 'monospace',
-                      fontSize: '14px',
-                    },
-                  }}
                 />
 
                 <Group>
@@ -382,7 +376,7 @@ export function SOQLQueryTool() {
               </Alert>
             )}
 
-            {renderResultTable()}
+            {result && renderResultTable({ result })}
           </Stack>
         </Tabs.Panel>
 
