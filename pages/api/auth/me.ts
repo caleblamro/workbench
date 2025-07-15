@@ -7,7 +7,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const cookies = parse(req.headers.cookie || '');
-  
+
   const accessToken = cookies.sf_access_token;
   const instanceUrl = cookies.sf_instance_url;
   const userInfo = cookies.sf_user_info;
@@ -18,7 +18,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     const parsedUserInfo = JSON.parse(userInfo);
-    
+
     res.status(200).json({
       user: parsedUserInfo,
       instanceUrl,

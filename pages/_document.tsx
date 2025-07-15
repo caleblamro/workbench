@@ -6,6 +6,10 @@ export default function Document() {
     <Html lang="en" {...mantineHtmlProps}>
       <Head>
         <ColorSchemeScript />
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"
+        />
       </Head>
       <body>
         <Main />

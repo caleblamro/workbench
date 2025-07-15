@@ -1,35 +1,35 @@
 import { useState } from 'react';
 import {
-  Title,
-  Stack,
-  Group,
-  Button,
-  Textarea,
-  Text,
-  Card,
-  Table,
-  ScrollArea,
+  IconAlertCircle,
+  IconBookmark,
+  IconCircle,
+  IconClock,
+  IconCode,
+  IconCopy,
+  IconDownload,
+  IconPlayerPlay,
+  IconTrash,
+} from '@tabler/icons-react';
+import { CodeHighlight } from '@mantine/code-highlight';
+import {
+  ActionIcon,
   Alert,
   Badge,
-  Tabs,
-  ActionIcon,
-  Tooltip,
+  Button,
+  Card,
+  Group,
   LoadingOverlay,
+  ScrollArea,
+  Stack,
+  Table,
+  Tabs,
+  Text,
+  Textarea,
+  Title,
+  Tooltip,
 } from '@mantine/core';
-import {
-  IconPlayerPlay,
-  IconDownload,
-  IconCopy,
-  IconClock,
-  IconTrash,
-  IconBookmark,
-  IconCode,
-  IconAlertCircle,
-  IconCircle,
-} from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import { useLocalStorage } from '@mantine/hooks';
-import { CodeHighlight } from '@mantine/code-highlight';
+import { notifications } from '@mantine/notifications';
 
 interface QueryResult {
   totalSize: number;
@@ -60,12 +60,14 @@ const EXAMPLE_QUERIES = [
   },
   {
     name: 'Recent Opportunities',
-    query: 'SELECT Id, Name, Amount, StageName, CreatedDate FROM Opportunity WHERE CreatedDate = LAST_N_DAYS:30 ORDER BY CreatedDate DESC',
+    query:
+      'SELECT Id, Name, Amount, StageName, CreatedDate FROM Opportunity WHERE CreatedDate = LAST_N_DAYS:30 ORDER BY CreatedDate DESC',
     description: 'Opportunities created in the last 30 days',
   },
   {
     name: 'User Information',
-    query: 'SELECT Id, Name, Email, Profile.Name, IsActive FROM User WHERE IsActive = true LIMIT 10',
+    query:
+      'SELECT Id, Name, Email, Profile.Name, IsActive FROM User WHERE IsActive = true LIMIT 10',
     description: 'Active users with their profiles',
   },
   {
@@ -115,7 +117,7 @@ export function SOQLQueryTool() {
       }
 
       setResult(data);
-      
+
       // Add to history
       const historyItem: QueryHistoryItem = {
         id: Date.now().toString(),
@@ -124,8 +126,8 @@ export function SOQLQueryTool() {
         success: true,
         recordCount: data.totalSize,
       };
-      
-      setQueryHistory(prev => [historyItem, ...prev.slice(0, 19)]); // Keep last 20
+
+      setQueryHistory((prev) => [historyItem, ...prev.slice(0, 19)]); // Keep last 20
 
       notifications.show({
         title: 'Success',
@@ -135,7 +137,7 @@ export function SOQLQueryTool() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      
+
       // Add failed query to history
       const historyItem: QueryHistoryItem = {
         id: Date.now().toString(),
@@ -144,8 +146,8 @@ export function SOQLQueryTool() {
         success: false,
         error: errorMessage,
       };
-      
-      setQueryHistory(prev => [historyItem, ...prev.slice(0, 19)]);
+
+      setQueryHistory((prev) => [historyItem, ...prev.slice(0, 19)]);
 
       notifications.show({
         title: 'Query Failed',
@@ -174,17 +176,19 @@ export function SOQLQueryTool() {
     const headers = Object.keys(result.records[0]);
     const csvContent = [
       headers.join(','),
-      ...result.records.map(record => 
-        headers.map(header => {
-          const value = record[header];
-          if (value === null || value === undefined) {
-            return '';
-          }
-          if (typeof value === 'object') {
-            return JSON.stringify(value);
-          }
-          return `"${String(value).replace(/"/g, '""')}"`;
-        }).join(',')
+      ...result.records.map((record) =>
+        headers
+          .map((header) => {
+            const value = record[header];
+            if (value === null || value === undefined) {
+              return '';
+            }
+            if (typeof value === 'object') {
+              return JSON.stringify(value);
+            }
+            return `"${String(value).replace(/"/g, '""')}"`;
+          })
+          .join(',')
       ),
     ].join('\n');
 
@@ -224,7 +228,7 @@ export function SOQLQueryTool() {
     }
 
     const headers = Object.keys(result.records[0]);
-    
+
     return (
       <Card withBorder>
         <Group justify="space-between" mb="md">
@@ -264,8 +268,8 @@ export function SOQLQueryTool() {
                       {record[header] === null || record[header] === undefined
                         ? ''
                         : typeof record[header] === 'object'
-                        ? JSON.stringify(record[header])
-                        : String(record[header])}
+                          ? JSON.stringify(record[header])
+                          : String(record[header])}
                     </Table.Td>
                   ))}
                 </Table.Tr>
@@ -283,9 +287,7 @@ export function SOQLQueryTool() {
         <Title order={2} mb="xs">
           SOQL Query Tool
         </Title>
-        <Text c="dimmed">
-          Execute SOQL queries against your Salesforce org
-        </Text>
+        <Text c="dimmed">Execute SOQL queries against your Salesforce org</Text>
       </div>
 
       <Tabs defaultValue="query">
@@ -374,11 +376,7 @@ export function SOQLQueryTool() {
             )}
 
             {result && (
-              <Alert
-                icon={<IconCircle size={16} />}
-                color="green"
-                title="Query Successful"
-              >
+              <Alert icon={<IconCircle size={16} />} color="green" title="Query Successful">
                 Found {result.totalSize} records
                 {!result.done && ' (showing first batch)'}
               </Alert>
@@ -390,11 +388,14 @@ export function SOQLQueryTool() {
 
         <Tabs.Panel value="examples" pt="md">
           <Stack gap="md">
-            <Text>
-              Click on any example below to load it into the query editor:
-            </Text>
+            <Text>Click on any example below to load it into the query editor:</Text>
             {EXAMPLE_QUERIES.map((example, index) => (
-              <Card key={index} withBorder style={{ cursor: 'pointer' }} onClick={() => loadExampleQuery(example.query)}>
+              <Card
+                key={index}
+                withBorder
+                style={{ cursor: 'pointer' }}
+                onClick={() => loadExampleQuery(example.query)}
+              >
                 <Stack gap="xs">
                   <Group justify="space-between">
                     <Text fw={500}>{example.name}</Text>
@@ -402,8 +403,8 @@ export function SOQLQueryTool() {
                   <Text size="sm" c="dimmed">
                     {example.description}
                   </Text>
-                  <CodeHighlight 
-                    code={example.query} 
+                  <CodeHighlight
+                    code={example.query}
                     language="sql"
                     copyLabel="Copy query"
                     copiedLabel="Copied!"
@@ -435,14 +436,16 @@ export function SOQLQueryTool() {
               </Text>
             ) : (
               queryHistory.map((item) => (
-                <Card key={item.id} withBorder style={{ cursor: 'pointer' }} onClick={() => loadFromHistory(item)}>
+                <Card
+                  key={item.id}
+                  withBorder
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => loadFromHistory(item)}
+                >
                   <Stack gap="xs">
                     <Group justify="space-between">
                       <Group>
-                        <Badge
-                          color={item.success ? 'green' : 'red'}
-                          variant="light"
-                        >
+                        <Badge color={item.success ? 'green' : 'red'} variant="light">
                           {item.success ? 'Success' : 'Failed'}
                         </Badge>
                         <Text size="sm" c="dimmed">
@@ -450,21 +453,21 @@ export function SOQLQueryTool() {
                         </Text>
                       </Group>
                     </Group>
-                    
+
                     {item.success && item.recordCount !== undefined && (
                       <Text size="sm" c="dimmed">
                         {item.recordCount} records
                       </Text>
                     )}
-                    
+
                     {!item.success && item.error && (
                       <Text size="sm" c="red">
                         {item.error}
                       </Text>
                     )}
-                    
-                    <CodeHighlight 
-                      code={item.query} 
+
+                    <CodeHighlight
+                      code={item.query}
                       language="sql"
                       copyLabel="Copy query"
                       copiedLabel="Copied!"
@@ -476,7 +479,7 @@ export function SOQLQueryTool() {
           </Stack>
         </Tabs.Panel>
       </Tabs>
-      
+
       <LoadingOverlay visible={isLoading} />
     </Stack>
   );

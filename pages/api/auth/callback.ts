@@ -16,10 +16,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  const { code, state, error } = req.query;
+  const { code, error } = req.query;
 
   if (error) {
-    return res.redirect('/?error=' + encodeURIComponent(error as string));
+    return res.redirect(`/?error=${encodeURIComponent(error as string)}`);
   }
 
   if (!code) {
@@ -38,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // Exchange authorization code for access token
     const tokenUrl = new URL('/services/oauth2/token', loginUrl);
-    
+
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: clientId,
@@ -51,14 +51,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: tokenParams.toString(),
     });
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('Token exchange failed:', errorText);
       return res.redirect('/?error=token_exchange_failed');
     }
 
@@ -67,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get user info
     const userInfoResponse = await fetch(tokens.id, {
       headers: {
-        'Authorization': `Bearer ${tokens.access_token}`,
+        Authorization: `Bearer ${tokens.access_token}`,
       },
     });
 
@@ -92,7 +90,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Redirect to dashboard
     res.redirect('/dashboard');
   } catch (error) {
-    console.error('OAuth callback error:', error);
     res.redirect('/?error=callback_failed');
   }
 }

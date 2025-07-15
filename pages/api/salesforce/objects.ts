@@ -16,10 +16,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const objects = await listObjects(connection);
     res.status(200).json(objects);
   } catch (error) {
-    console.error('Failed to list objects:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Failed to fetch objects',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 }

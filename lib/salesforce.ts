@@ -7,7 +7,7 @@ import type { SalesforceConnection } from '../types/salesforce';
  */
 export function getSalesforceConnection(req: NextApiRequest): SalesforceConnection | null {
   const cookies = parse(req.headers.cookie || '');
-  
+
   const accessToken = cookies.sf_access_token;
   const instanceUrl = cookies.sf_instance_url;
   const refreshToken = cookies.sf_refresh_token;
@@ -32,11 +32,11 @@ export async function salesforceApiCall(
   options: RequestInit = {}
 ): Promise<Response> {
   const url = `${connection.instanceUrl}${endpoint}`;
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
-      'Authorization': `Bearer ${connection.accessToken}`,
+      Authorization: `Bearer ${connection.accessToken}`,
       'Content-Type': 'application/json',
       ...options.headers,
     },
@@ -48,10 +48,7 @@ export async function salesforceApiCall(
 /**
  * Execute a SOQL query
  */
-export async function executeQuery(
-  connection: SalesforceConnection,
-  query: string
-): Promise<any> {
+export async function executeQuery(connection: SalesforceConnection, query: string): Promise<any> {
   const encodedQuery = encodeURIComponent(query);
   const response = await salesforceApiCall(
     connection,
@@ -87,13 +84,8 @@ export async function getObjectMetadata(
 /**
  * List all available Salesforce objects
  */
-export async function listObjects(
-  connection: SalesforceConnection
-): Promise<any> {
-  const response = await salesforceApiCall(
-    connection,
-    '/services/data/v58.0/sobjects/'
-  );
+export async function listObjects(connection: SalesforceConnection): Promise<any> {
+  const response = await salesforceApiCall(connection, '/services/data/v58.0/sobjects/');
 
   if (!response.ok) {
     throw new Error(`Failed to list objects: ${response.statusText}`);
@@ -105,13 +97,8 @@ export async function listObjects(
 /**
  * Get organization limits
  */
-export async function getOrgLimits(
-  connection: SalesforceConnection
-): Promise<any> {
-  const response = await salesforceApiCall(
-    connection,
-    '/services/data/v58.0/limits/'
-  );
+export async function getOrgLimits(connection: SalesforceConnection): Promise<any> {
+  const response = await salesforceApiCall(connection, '/services/data/v58.0/limits/');
 
   if (!response.ok) {
     throw new Error(`Failed to get org limits: ${response.statusText}`);

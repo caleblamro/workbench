@@ -1,22 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
+  IconApi,
+  IconChevronDown,
+  IconCode,
+  IconDatabase,
+  IconHome,
+  IconLogout,
+  IconMoon,
+  IconSearch,
+  IconSettings,
+  IconSun,
+  IconUser,
+} from '@tabler/icons-react';
+import {
   AppShell,
-  Container,
-  Title,
-  Text,
-  Button,
-  Group,
   Avatar,
-  Menu,
-  Stack,
-  Card,
   Badge,
+  Button,
+  Card,
+  Container,
+  Group,
   LoadingOverlay,
+  Menu,
   NavLink,
   ScrollArea,
+  Stack,
+  Text,
+  Title,
+  useMantineColorScheme,
 } from '@mantine/core';
-import { IconLogout, IconUser, IconSettings, IconChevronDown, IconCode, IconSearch, IconApi, IconDatabase, IconHome } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import type { AuthSession } from '../types/salesforce';
 
@@ -24,6 +37,10 @@ export function Dashboard() {
   const router = useRouter();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const isLight = useMemo(() => {
+    return colorScheme === 'light';
+  }, [colorScheme]);
 
   useEffect(() => {
     checkAuthentication();
@@ -39,7 +56,6 @@ export function Dashboard() {
         router.push('/');
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
       router.push('/');
     } finally {
       setLoading(false);
@@ -118,37 +134,28 @@ export function Dashboard() {
           <Group>
             <Title order={3}>Workbench</Title>
           </Group>
-          
+
           <Menu shadow="md" width={200}>
             <Menu.Target>
-              <Button
-                variant="subtle"
-                rightSection={<IconChevronDown size={16} />}
-              >
+              <Button variant="subtle" rightSection={<IconChevronDown size={16} />}>
                 <Group gap="xs">
-                  <Avatar
-                    src={session.user.photos?.thumbnail}
-                    size={24}
-                    radius="xl"
-                  />
+                  <Avatar src={session.user.photos?.thumbnail} size={24} radius="xl" />
                   <Text size="sm">{session.user.display_name}</Text>
                 </Group>
               </Button>
             </Menu.Target>
 
             <Menu.Dropdown>
-              <Menu.Item leftSection={<IconUser size={14} />}>
-                Profile
-              </Menu.Item>
-              <Menu.Item leftSection={<IconSettings size={14} />}>
-                Settings
+              <Menu.Item leftSection={<IconUser size={14} />}>Profile</Menu.Item>
+              <Menu.Item leftSection={<IconSettings size={14} />}>Settings</Menu.Item>
+              <Menu.Item
+                leftSection={isLight ? <IconMoon size={14} /> : <IconSun size={14} />}
+                onClick={() => setColorScheme(isLight ? 'dark' : 'light')}
+              >
+                {isLight ? 'Dark mode' : 'Light mode'}
               </Menu.Item>
               <Menu.Divider />
-              <Menu.Item
-                leftSection={<IconLogout size={14} />}
-                color="red"
-                onClick={handleLogout}
-              >
+              <Menu.Item leftSection={<IconLogout size={14} />} color="red" onClick={handleLogout}>
                 Logout
               </Menu.Item>
             </Menu.Dropdown>
@@ -176,7 +183,7 @@ export function Dashboard() {
             ))}
           </Stack>
         </AppShell.Section>
-        
+
         <AppShell.Section>
           <Stack gap="xs">
             <Text size="xs" c="dimmed" fw={500}>
@@ -199,9 +206,7 @@ export function Dashboard() {
               <Title order={1} mb="xs">
                 Welcome, {session.user.first_name}!
               </Title>
-              <Text c="dimmed">
-                You're connected to your Salesforce org
-              </Text>
+              <Text c="dimmed">You're connected to your Salesforce org</Text>
             </div>
 
             <Card withBorder shadow="sm" padding="lg" radius="md">
@@ -212,28 +217,28 @@ export function Dashboard() {
                     Connected
                   </Badge>
                 </Group>
-                
+
                 <div>
                   <Text size="sm" c="dimmed" mb="xs">
                     Organization
                   </Text>
                   <Text>{session.user.organization_id}</Text>
                 </div>
-                
+
                 <div>
                   <Text size="sm" c="dimmed" mb="xs">
                     Instance URL
                   </Text>
                   <Text>{session.instanceUrl}</Text>
                 </div>
-                
+
                 <div>
                   <Text size="sm" c="dimmed" mb="xs">
                     Username
                   </Text>
                   <Text>{session.user.username}</Text>
                 </div>
-                
+
                 <div>
                   <Text size="sm" c="dimmed" mb="xs">
                     User Type
@@ -248,25 +253,17 @@ export function Dashboard() {
                 Quick Actions
               </Title>
               <Group>
-                <Button 
-                  variant="light" 
+                <Button
+                  variant="light"
                   leftSection={<IconCode size={16} />}
                   onClick={() => router.push('/query')}
                 >
                   Query Data
                 </Button>
-                <Button 
-                  variant="light" 
-                  leftSection={<IconSearch size={16} />}
-                  disabled
-                >
+                <Button variant="light" leftSection={<IconSearch size={16} />} disabled>
                   Object Inspector
                 </Button>
-                <Button 
-                  variant="light" 
-                  leftSection={<IconApi size={16} />}
-                  disabled
-                >
+                <Button variant="light" leftSection={<IconApi size={16} />} disabled>
                   REST Explorer
                 </Button>
               </Group>

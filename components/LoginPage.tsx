@@ -1,7 +1,7 @@
-import { Container, Paper, Title, Text, Button, Stack, Group } from '@mantine/core';
-import { IconCloud, IconShield } from '@tabler/icons-react';
-import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import { IconCloud, IconShield } from '@tabler/icons-react';
+import { Button, Container, Group, Paper, Stack, Text, Title } from '@mantine/core';
 
 interface LoginPageProps {
   error?: string;
@@ -14,7 +14,7 @@ export function LoginPage({ error }: LoginPageProps) {
   useEffect(() => {
     // Check if user is already authenticated
     fetch('/api/auth/me')
-      .then(res => {
+      .then((res) => {
         if (res.ok) {
           router.push('/dashboard');
         }
@@ -52,12 +52,12 @@ export function LoginPage({ error }: LoginPageProps) {
                 {getErrorMessage(error)}
               </Text>
             )}
-            
+
             <div>
               <Text size="sm" c="dimmed" mb="xs">
                 Sign in with your Salesforce credentials
               </Text>
-              
+
               <Button
                 fullWidth
                 size="md"
@@ -73,8 +73,8 @@ export function LoginPage({ error }: LoginPageProps) {
 
             <div>
               <Text size="xs" c="dimmed" ta="center">
-                This will redirect you to Salesforce for secure authentication.
-                Your credentials are never stored by this application.
+                This will redirect you to Salesforce for secure authentication. Your credentials are
+                never stored by this application.
               </Text>
             </div>
           </Stack>

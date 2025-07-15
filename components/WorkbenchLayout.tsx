@@ -1,19 +1,32 @@
-import { useEffect, useState, ReactNode } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
+  IconApi,
+  IconChevronDown,
+  IconCode,
+  IconDatabase,
+  IconHome,
+  IconLogout,
+  IconMoon,
+  IconSearch,
+  IconSettings,
+  IconSun,
+  IconUser,
+} from '@tabler/icons-react';
+import {
   AppShell,
-  Group,
   Avatar,
-  Menu,
   Button,
-  Text,
-  Title,
+  Group,
   LoadingOverlay,
+  Menu,
   NavLink,
   ScrollArea,
   Stack,
+  Text,
+  Title,
+  useMantineColorScheme,
 } from '@mantine/core';
-import { IconLogout, IconUser, IconSettings, IconChevronDown, IconCode, IconSearch, IconApi, IconDatabase, IconHome } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import type { AuthSession } from '../types/salesforce';
 
@@ -25,6 +38,10 @@ export function WorkbenchLayout({ children }: WorkbenchLayoutProps) {
   const router = useRouter();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const isLight = useMemo(() => {
+    return colorScheme === 'light';
+  }, [colorScheme]);
 
   useEffect(() => {
     checkAuthentication();
@@ -40,7 +57,6 @@ export function WorkbenchLayout({ children }: WorkbenchLayoutProps) {
         router.push('/');
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
       router.push('/');
     } finally {
       setLoading(false);
@@ -119,37 +135,28 @@ export function WorkbenchLayout({ children }: WorkbenchLayoutProps) {
           <Group>
             <Title order={3}>Workbench</Title>
           </Group>
-          
+
           <Menu shadow="md" width={200}>
             <Menu.Target>
-              <Button
-                variant="subtle"
-                rightSection={<IconChevronDown size={16} />}
-              >
+              <Button variant="subtle" rightSection={<IconChevronDown size={16} />}>
                 <Group gap="xs">
-                  <Avatar
-                    src={session.user.photos?.thumbnail}
-                    size={24}
-                    radius="xl"
-                  />
+                  <Avatar src={session.user.photos?.thumbnail} size={24} radius="xl" />
                   <Text size="sm">{session.user.display_name}</Text>
                 </Group>
               </Button>
             </Menu.Target>
 
             <Menu.Dropdown>
-              <Menu.Item leftSection={<IconUser size={14} />}>
-                Profile
-              </Menu.Item>
-              <Menu.Item leftSection={<IconSettings size={14} />}>
-                Settings
+              <Menu.Item leftSection={<IconUser size={14} />}>Profile</Menu.Item>
+              <Menu.Item leftSection={<IconSettings size={14} />}>Settings</Menu.Item>
+              <Menu.Item
+                leftSection={isLight ? <IconMoon size={14} /> : <IconSun size={14} />}
+                onClick={() => setColorScheme(isLight ? 'dark' : 'light')}
+              >
+                {isLight ? 'Dark mode' : 'Light mode'}
               </Menu.Item>
               <Menu.Divider />
-              <Menu.Item
-                leftSection={<IconLogout size={14} />}
-                color="red"
-                onClick={handleLogout}
-              >
+              <Menu.Item leftSection={<IconLogout size={14} />} color="red" onClick={handleLogout}>
                 Logout
               </Menu.Item>
             </Menu.Dropdown>
@@ -177,7 +184,7 @@ export function WorkbenchLayout({ children }: WorkbenchLayoutProps) {
             ))}
           </Stack>
         </AppShell.Section>
-        
+
         <AppShell.Section>
           <Stack gap="xs">
             <Text size="xs" c="dimmed" fw={500}>
@@ -193,9 +200,7 @@ export function WorkbenchLayout({ children }: WorkbenchLayoutProps) {
         </AppShell.Section>
       </AppShell.Navbar>
 
-      <AppShell.Main>
-        {children}
-      </AppShell.Main>
+      <AppShell.Main>{children}</AppShell.Main>
     </AppShell>
   );
 }
