@@ -14,7 +14,6 @@ import {
   Tabs,
   ActionIcon,
   Tooltip,
-  Paper,
   LoadingOverlay,
 } from '@mantine/core';
 import {
@@ -30,6 +29,7 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useLocalStorage } from '@mantine/hooks';
+import { CodeHighlight } from '@mantine/code-highlight';
 
 interface QueryResult {
   totalSize: number;
@@ -398,22 +398,16 @@ export function SOQLQueryTool() {
                 <Stack gap="xs">
                   <Group justify="space-between">
                     <Text fw={500}>{example.name}</Text>
-                    <ActionIcon
-                      variant="light"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        copyToClipboard(example.query);
-                      }}
-                    >
-                      <IconCopy size={16} />
-                    </ActionIcon>
                   </Group>
                   <Text size="sm" c="dimmed">
                     {example.description}
                   </Text>
-                  <Paper p="xs" bg="gray.0" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                    {example.query}
-                  </Paper>
+                  <CodeHighlight 
+                    code={example.query} 
+                    language="sql"
+                    copyLabel="Copy query"
+                    copiedLabel="Copied!"
+                  />
                 </Stack>
               </Card>
             ))}
@@ -455,15 +449,6 @@ export function SOQLQueryTool() {
                           {item.timestamp.toLocaleString()}
                         </Text>
                       </Group>
-                      <ActionIcon
-                        variant="light"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyToClipboard(item.query);
-                        }}
-                      >
-                        <IconCopy size={16} />
-                      </ActionIcon>
                     </Group>
                     
                     {item.success && item.recordCount !== undefined && (
@@ -478,9 +463,12 @@ export function SOQLQueryTool() {
                       </Text>
                     )}
                     
-                    <Paper p="xs" bg="gray.0" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                      {item.query}
-                    </Paper>
+                    <CodeHighlight 
+                      code={item.query} 
+                      language="sql"
+                      copyLabel="Copy query"
+                      copiedLabel="Copied!"
+                    />
                   </Stack>
                 </Card>
               ))
