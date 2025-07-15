@@ -18,7 +18,6 @@ import {
   Button,
   Card,
   Group,
-  LoadingOverlay,
   ScrollArea,
   Stack,
   Table,
@@ -110,12 +109,19 @@ const exportToCSV = ({ result }: { result: QueryResult }) => {
   URL.revokeObjectURL(url);
 };
 
-const renderResultTable = ({ result }: { result: QueryResult }) => {
+const renderResultTable = ({
+  result,
+  showAttributes = false,
+}: {
+  result: QueryResult;
+  showAttributes?: boolean;
+}) => {
   if (!result || !result.records.length) {
     return null;
   }
 
   const headers = Object.keys(result.records[0]);
+  const filteredHeaders = showAttributes ? headers : headers.filter((e) => e !== 'attributes');
 
   return (
     <Card withBorder>
@@ -143,7 +149,7 @@ const renderResultTable = ({ result }: { result: QueryResult }) => {
         <Table striped highlightOnHover>
           <Table.Thead>
             <Table.Tr>
-              {headers.map((header) => (
+              {filteredHeaders.map((header) => (
                 <Table.Th key={header}>{header}</Table.Th>
               ))}
             </Table.Tr>
@@ -151,7 +157,7 @@ const renderResultTable = ({ result }: { result: QueryResult }) => {
           <Table.Tbody>
             {result.records.map((record, index) => (
               <Table.Tr key={index}>
-                {headers.map((header) => (
+                {filteredHeaders.map((header) => (
                   <Table.Td key={header}>
                     {record[header] === null || record[header] === undefined
                       ? ''
@@ -473,8 +479,6 @@ export function SOQLQueryTool() {
           </Stack>
         </Tabs.Panel>
       </Tabs>
-
-      <LoadingOverlay visible={isLoading} />
     </Stack>
   );
 }
