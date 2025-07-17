@@ -7,7 +7,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
   const clientId = process.env.SALESFORCE_CLIENT_ID;
   const redirectUri = process.env.SALESFORCE_REDIRECT_URI;
-  const loginUrl = 'https://orgfarm-a5c969edfc-dev-ed.develop.my.salesforce.com';
+  const loginUrl = process.env.SALESFORCE_LOGIN_URL;
 
   if (!clientId || !redirectUri) {
     return res.status(500).json({ message: 'Salesforce OAuth not configured' });
