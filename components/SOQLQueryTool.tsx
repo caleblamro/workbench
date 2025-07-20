@@ -29,6 +29,7 @@ import {
 import { useLocalStorage } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { EditableCodeHighlight } from './EditableCodeHighlight';
+import { RecordLink } from './RecordLink';
 
 interface QueryResult {
   totalSize: number;
@@ -159,11 +160,21 @@ const renderResultTable = ({
               <Table.Tr key={index}>
                 {filteredHeaders.map((header) => (
                   <Table.Td key={header}>
-                    {record[header] === null || record[header] === undefined
-                      ? ''
-                      : typeof record[header] === 'object'
-                        ? JSON.stringify(record[header])
-                        : String(record[header])}
+                    {header === 'Id' && record[header] && record.attributes?.type ? (
+                      <RecordLink
+                        objectType={record.attributes.type}
+                        recordId={record[header]}
+                        label={record[header]}
+                        size="sm"
+                        truncate
+                      />
+                    ) : record[header] === null || record[header] === undefined ? (
+                      ''
+                    ) : typeof record[header] === 'object' ? (
+                      JSON.stringify(record[header])
+                    ) : (
+                      String(record[header])
+                    )}
                   </Table.Td>
                 ))}
               </Table.Tr>

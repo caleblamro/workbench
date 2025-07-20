@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { IconEye, IconTable } from '@tabler/icons-react';
 import {
   Badge,
@@ -24,6 +24,7 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opened, setOpened] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
   const loadMetadata = async () => {
     if (metadata || loading) {
@@ -48,11 +49,31 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
   };
 
   const handleMouseEnter = () => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
     setOpened(true);
     loadMetadata();
   };
 
   const handleMouseLeave = () => {
+    // Add a small delay before closing to allow moving to popover content
+    timeoutRef.current = setTimeout(() => {
+      setOpened(false);
+    }, 100);
+  };
+
+  const handlePopoverMouseEnter = () => {
+    // Clear timeout when mouse enters popover content
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+  };
+
+  const handlePopoverMouseLeave = () => {
+    // Close when leaving popover content
     setOpened(false);
   };
 
@@ -63,7 +84,9 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
       shadow="md"
       opened={opened}
       onChange={setOpened}
-      offset={{ mainAxis: 0, crossAxis: 0 }}
+      offset={{ mainAxis: 5, crossAxis: 0 }}
+      withArrow
+      withinPortal
     >
       <Popover.Target>
         <div
@@ -74,7 +97,11 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
           {children}
         </div>
       </Popover.Target>
-      <Popover.Dropdown>
+      <Popover.Dropdown
+        onMouseEnter={handlePopoverMouseEnter}
+        onMouseLeave={handlePopoverMouseLeave}
+        style={{ padding: 0 }}
+      >
         {loading ? (
           <Group justify="center" p="md">
             <Loader size="sm" />
@@ -90,7 +117,7 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
           </Box>
         ) : metadata ? (
           <ScrollArea.Autosize mah={400}>
-            <Stack gap="md">
+            <Stack gap="md" p="md">
               {/* Header */}
               <Group gap="xs">
                 <IconTable size={16} color={metadata.custom ? 'orange' : 'gray'} />
