@@ -537,6 +537,14 @@ export function SOQLQueryTool() {
                       language="sql"
                       copyLabel="Copy query"
                       copiedLabel="Copied!"
+                      controls={[
+                        <CodeHighlightControl
+                          tooltipLabel="Execute query"
+                          onClick={() => loadExampleQuery(item.query)}
+                        >
+                          <IconPlayerPlay />
+                        </CodeHighlightControl>,
+                      ]}
                     />
                   </Stack>
                 </Card>
