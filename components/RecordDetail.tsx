@@ -12,6 +12,7 @@ import {
   IconMail,
   IconPhone,
   IconRefresh,
+  IconSearch,
   IconX,
 } from '@tabler/icons-react';
 import {
@@ -29,6 +30,7 @@ import {
   ScrollArea,
   Stack,
   Text,
+  TextInput,
   Title,
   Tooltip,
   UnstyledButton,
@@ -36,10 +38,10 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { 
-  getFieldTypeColor, 
-  getFieldTypeIcon, 
-  type SalesforceField 
+import {
+  getFieldTypeColor,
+  getFieldTypeIcon,
+  type SalesforceField,
 } from '../lib/salesforce-field-utils';
 import { ObjectLink } from './ObjectLink';
 import { RecordLink } from './RecordLink';
@@ -68,56 +70,56 @@ interface FieldRowProps {
 
 function FieldRow({ field, value, onCopy }: FieldRowProps) {
   const { colorScheme } = useMantineColorScheme();
-  
+
   const renderValue = () => {
     if (value === null || value === undefined) {
-      return <Text size="sm" c="dimmed" fs="italic">—</Text>;
+      return (
+        <Text size="sm" c="dimmed" fs="italic">
+          —
+        </Text>
+      );
     }
 
     // Handle ID fields (18-character Salesforce IDs)
-    if (field.type.toLowerCase() === 'id' || (field.name === 'Id' && typeof value === 'string' && value.length >= 15)) {
+    if (
+      field.type.toLowerCase() === 'id' ||
+      (field.name === 'Id' && typeof value === 'string' && value.length >= 15)
+    ) {
       // Try to determine the object type from the ID prefix
       // This is a simplified approach - in a real implementation you might want to maintain a mapping
       const idPrefix = value.substring(0, 3);
-      
+
       // Some common prefixes - you could expand this or fetch from Salesforce
       const prefixToObject: Record<string, string> = {
         '001': 'Account',
-        '003': 'Contact', 
+        '003': 'Contact',
         '006': 'Opportunity',
         '00Q': 'Lead',
         '500': 'Case',
         '0D5': 'OpportunityLineItem',
       };
-      
+
       const objectType = prefixToObject[idPrefix];
-      
+
       if (objectType && field.name !== 'Id') {
         // This is a reference ID field, create a link to the related record
         return (
-          <RecordLink
-            objectType={objectType}
-            recordId={value}
-            label={value}
-            size="sm"
-            truncate
-          />
-        );
-      } else {
-        // This is the main record ID, just show it (already linked via the page)
-        return (
-          <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
-            {String(value)}
-          </Text>
+          <RecordLink objectType={objectType} recordId={value} label={value} size="sm" truncate />
         );
       }
+      // This is the main record ID, just show it (already linked via the page)
+      return (
+        <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
+          {String(value)}
+        </Text>
+      );
     }
 
     // Handle reference/lookup fields (relationship fields)
     if (field.type.toLowerCase() === 'reference' && typeof value === 'string') {
       // Check if we have reference info from referenceTo
       const referencedObject = field.referenceTo?.[0];
-      
+
       if (referencedObject && value.length >= 15) {
         return (
           <RecordLink
@@ -129,7 +131,7 @@ function FieldRow({ field, value, onCopy }: FieldRowProps) {
           />
         );
       }
-      
+
       return (
         <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
           {String(value)}
@@ -141,7 +143,7 @@ function FieldRow({ field, value, onCopy }: FieldRowProps) {
     if (typeof value === 'object' && value.attributes) {
       const relatedRecordName = value.Name || value.Title || value.Subject || value.Id;
       const relatedObjectType = value.attributes.type;
-      
+
       if (value.Id) {
         return (
           <RecordLink
@@ -152,37 +154,38 @@ function FieldRow({ field, value, onCopy }: FieldRowProps) {
             truncate
           />
         );
-      } else {
-        return (
-          <ObjectLink
-            objectName={relatedObjectType}
-            label={relatedRecordName}
-            showIcon={false}
-            size="sm"
-          />
-        );
       }
+      return (
+        <ObjectLink
+          objectName={relatedObjectType}
+          label={relatedRecordName}
+          showIcon={false}
+          size="sm"
+        />
+      );
     }
 
     // Handle different field types
     switch (field.type.toLowerCase()) {
       case 'url':
         return (
-          <Anchor 
-            href={String(value)} 
-            target="_blank" 
+          <Anchor
+            href={String(value)}
+            target="_blank"
             rel="noopener noreferrer"
             size="sm"
             style={{ display: 'flex', alignItems: 'center', gap: 4 }}
           >
-            <Text truncate style={{ maxWidth: 250 }}>{String(value)}</Text>
+            <Text truncate style={{ maxWidth: 250 }}>
+              {String(value)}
+            </Text>
             <IconExternalLink size={12} />
           </Anchor>
         );
-      
+
       case 'email':
         return (
-          <Anchor 
+          <Anchor
             href={`mailto:${value}`}
             size="sm"
             style={{ display: 'flex', alignItems: 'center', gap: 4 }}
@@ -191,10 +194,10 @@ function FieldRow({ field, value, onCopy }: FieldRowProps) {
             {String(value)}
           </Anchor>
         );
-      
+
       case 'phone':
         return (
-          <Anchor 
+          <Anchor
             href={`tel:${value}`}
             size="sm"
             style={{ display: 'flex', alignItems: 'center', gap: 4 }}
@@ -203,42 +206,44 @@ function FieldRow({ field, value, onCopy }: FieldRowProps) {
             {String(value)}
           </Anchor>
         );
-      
+
       case 'boolean':
         return (
           <Group gap="xs">
-            {value ? <IconCheck size={16} color="var(--mantine-color-green-6)" /> : <IconX size={16} color="var(--mantine-color-red-6)" />}
+            {value ? (
+              <IconCheck size={16} color="var(--mantine-color-green-6)" />
+            ) : (
+              <IconX size={16} color="var(--mantine-color-red-6)" />
+            )}
             <Text size="sm" c={value ? 'green' : 'red'}>
               {value ? 'Yes' : 'No'}
             </Text>
           </Group>
         );
-      
+
       case 'date':
       case 'datetime':
         return (
           <Group gap="xs">
             <IconCalendar size={14} />
-            <Text size="sm">
-              {new Date(value).toLocaleString()}
-            </Text>
+            <Text size="sm">{new Date(value).toLocaleString()}</Text>
           </Group>
         );
-      
+
       case 'currency':
         return (
           <Text size="sm" fw={500} c="green">
             ${Number(value).toLocaleString()}
           </Text>
         );
-      
+
       case 'percent':
         return (
           <Text size="sm" fw={500}>
             {Number(value).toLocaleString()}%
           </Text>
         );
-      
+
       case 'picklist':
       case 'multipicklist':
         return (
@@ -246,14 +251,14 @@ function FieldRow({ field, value, onCopy }: FieldRowProps) {
             {String(value)}
           </Badge>
         );
-      
+
       case 'textarea':
         return (
           <Text size="sm" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {String(value)}
           </Text>
         );
-      
+
       default:
         return (
           <Text size="sm" style={{ wordBreak: 'break-word' }}>
@@ -264,12 +269,13 @@ function FieldRow({ field, value, onCopy }: FieldRowProps) {
   };
 
   return (
-    <Box 
-      p="sm" 
+    <Box
+      p="sm"
       style={{
         borderRadius: 'var(--mantine-radius-sm)',
-        backgroundColor: colorScheme === 'dark' ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)',
-        border: `1px solid ${colorScheme === 'dark' ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-2)'}`
+        backgroundColor:
+          colorScheme === 'dark' ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)',
+        border: `1px solid ${colorScheme === 'dark' ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-2)'}`,
       }}
     >
       <Group justify="space-between" align="flex-start">
@@ -288,10 +294,8 @@ function FieldRow({ field, value, onCopy }: FieldRowProps) {
               {field.type}
             </Badge>
           </Group>
-          <Box mt="xs">
-            {renderValue()}
-          </Box>
-          
+          <Box mt="xs">{renderValue()}</Box>
+
           {/* Additional field metadata */}
           {(field.unique || field.externalId || !field.nillable || field.calculated) && (
             <Group gap="xs" mt="xs">
@@ -382,31 +386,52 @@ export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
   };
 
   const getFieldsBySection = (fields: SalesforceField[], record: Record<string, any>) => {
-    const systemFields = ['Id', 'CreatedDate', 'LastModifiedDate', 'CreatedBy', 'LastModifiedBy'];
-    
+    const systemFields = [
+      'Id',
+      'CreatedDate',
+      'LastModifiedDate',
+      'CreatedBy',
+      'LastModifiedBy',
+      'CreatedById',
+      'LastModifiedById',
+    ];
+
     // Filter fields based on search term
     const filteredFields = fields.filter((field) => {
-      if (!debouncedFieldSearchTerm) return true;
+      if (!debouncedFieldSearchTerm) {
+        return true;
+      }
       const searchLower = debouncedFieldSearchTerm.toLowerCase();
       return (
         field.name.toLowerCase().includes(searchLower) ||
         field.label.toLowerCase().includes(searchLower) ||
-        field.type.toLowerCase().includes(searchLower)
+        field.type.toLowerCase().includes(searchLower) ||
+        String(record[field.name] || '')
+          .toLowerCase()
+          .includes(searchLower)
       );
     });
-    
-    const identifierFields = filteredFields.filter(f => 
-      f.name === 'Name' || f.name === 'Subject' || f.name === 'Title' || 
-      f.externalId || f.unique || f.name.toLowerCase().includes('name') ||
-      (f.type.toLowerCase() === 'reference' && !systemFields.includes(f.name))
+
+    const identifierFields = filteredFields.filter(
+      (f) =>
+        f.name === 'Name' ||
+        f.name === 'Subject' ||
+        f.name === 'Title' ||
+        f.externalId ||
+        f.unique ||
+        f.name.toLowerCase().includes('name') ||
+        (f.type.toLowerCase() === 'reference' && !systemFields.includes(f.name))
     );
-    const standardFields = filteredFields.filter(f => 
-      !f.custom && 
-      !systemFields.includes(f.name) && 
-      !identifierFields.some(id => id.name === f.name)
+    const standardFields = filteredFields.filter(
+      (f) =>
+        !f.custom &&
+        !systemFields.includes(f.name) &&
+        !identifierFields.some((id) => id.name === f.name)
     );
-    const customFields = filteredFields.filter(f => f.custom);
-    const systemFieldsData = filteredFields.filter(f => systemFields.includes(f.name) || systemFields.some(sf => f.name.startsWith(sf)));
+    const customFields = filteredFields.filter((f) => f.custom);
+    const systemFieldsData = filteredFields.filter(
+      (f) => systemFields.includes(f.name) || systemFields.some((sf) => f.name.startsWith(sf))
+    );
 
     return { identifierFields, standardFields, customFields, systemFieldsData };
   };
@@ -432,7 +457,11 @@ export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
           <Button leftSection={<IconRefresh size={16} />} onClick={loadRecord}>
             Retry
           </Button>
-          <Button variant="light" leftSection={<IconArrowLeft size={16} />} onClick={() => router.back()}>
+          <Button
+            variant="light"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={() => router.back()}
+          >
             Go Back
           </Button>
         </Group>
@@ -452,8 +481,21 @@ export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
   }
 
   const { record, metadata } = recordData;
-  const { identifierFields, standardFields, customFields, systemFieldsData } = getFieldsBySection(metadata.fields, record);
+  const { identifierFields, standardFields, customFields, systemFieldsData } = getFieldsBySection(
+    metadata.fields,
+    record
+  );
   const recordName = record.Name || record.Subject || record.Title || recordId;
+
+  // Filter sections to only show fields that have values and match search
+  const keyInformationFields = identifierFields.filter((field) => record[field.name] !== undefined);
+  const systemInformationFields = systemFieldsData.filter(
+    (field) => record[field.name] !== undefined
+  );
+  const standardFieldsWithValues = standardFields.filter(
+    (field) => record[field.name] !== undefined
+  );
+  const customFieldsWithValues = customFields.filter((field) => record[field.name] !== undefined);
 
   return (
     <Box style={{ height: 'calc(100vh - 60px - 2rem)' }}>
@@ -467,39 +509,63 @@ export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
                   <UnstyledButton onClick={() => router.back()}>
                     <Group gap="xs">
                       <IconArrowLeft size={16} />
-                      <Text size="sm" c="dimmed">Back</Text>
+                      <Text size="sm" c="dimmed">
+                        Back
+                      </Text>
                     </Group>
                   </UnstyledButton>
-                  <Text size="sm" c="dimmed">/</Text>
+                  <Text size="sm" c="dimmed">
+                    /
+                  </Text>
                   <ObjectLink
                     objectName={metadata.name}
                     label={metadata.label}
                     showPreview={false}
                     size="sm"
                   />
-                  {metadata.custom && <Badge color="orange" variant="light">Custom Object</Badge>}
+                  {metadata.custom && (
+                    <Badge color="orange" variant="light">
+                      Custom Object
+                    </Badge>
+                  )}
                 </Group>
                 <Title order={2} mb="xs" c={colorScheme === 'dark' ? 'white' : 'dark'}>
                   {recordName}
                 </Title>
                 <Group gap="lg">
                   <Group gap="xs">
-                    <Text size="sm" c="dimmed">Record ID:</Text>
-                    <Text size="sm" ff="monospace">{recordId}</Text>
+                    <Text size="sm" c="dimmed">
+                      Record ID:
+                    </Text>
+                    <Text size="sm" ff="monospace">
+                      {recordId}
+                    </Text>
                     <Tooltip label="Copy Record ID">
-                      <ActionIcon size="sm" variant="subtle" onClick={() => copyToClipboard(recordId, 'Record ID')}>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => copyToClipboard(recordId, 'Record ID')}
+                      >
                         <IconCopy size={12} />
                       </ActionIcon>
                     </Tooltip>
                   </Group>
                   <Group gap="xs">
-                    <Text size="sm" c="dimmed">Object API:</Text>
-                    <Text size="sm" ff="monospace">{metadata.name}</Text>
+                    <Text size="sm" c="dimmed">
+                      Object API:
+                    </Text>
+                    <Text size="sm" ff="monospace">
+                      {metadata.name}
+                    </Text>
                   </Group>
                 </Group>
               </div>
               <Group>
-                <Button leftSection={<IconRefresh size={16} />} variant="light" onClick={loadRecord}>
+                <Button
+                  leftSection={<IconRefresh size={16} />}
+                  variant="light"
+                  onClick={loadRecord}
+                >
                   Refresh
                 </Button>
                 <Button leftSection={<IconEdit size={16} />} disabled>
@@ -507,44 +573,46 @@ export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
                 </Button>
               </Group>
             </Group>
+
+            {/* Search Fields */}
+            <Group justify="space-between" align="center">
+              <TextInput
+                placeholder="Search fields by name, label, type, or value..."
+                leftSection={<IconSearch size={16} />}
+                value={fieldSearchTerm}
+                onChange={(e) => setFieldSearchTerm(e.currentTarget.value)}
+                rightSection={
+                  fieldSearchTerm ? (
+                    <ActionIcon variant="subtle" onClick={() => setFieldSearchTerm('')}>
+                      <IconX size={16} />
+                    </ActionIcon>
+                  ) : null
+                }
+                style={{ width: 400 }}
+                size="sm"
+              />
+            </Group>
+            {debouncedFieldSearchTerm && (
+              <Text size="xs" c="dimmed" mt="xs">
+                Showing fields matching "{debouncedFieldSearchTerm}"
+              </Text>
+            )}
           </Card>
 
           <Grid>
-            {/* Key Information */}
-            {identifierFields.some(field => record[field.name] !== undefined) && (
+            {/* Key Information - Only show if there are matching fields */}
+            {keyInformationFields.length > 0 && (
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Card withBorder h="100%">
                   <Group gap="xs" mb="md">
                     <IconLink size={18} />
                     <Text fw={600}>Key Information</Text>
+                    <Badge size="xs" color="blue" variant="light">
+                      {keyInformationFields.length}
+                    </Badge>
                   </Group>
                   <Stack gap="sm">
-                    {identifierFields
-                      .filter(field => record[field.name] !== undefined)
-                      .map((field) => (
-                        <FieldRow
-                          key={field.name}
-                          field={field}
-                          value={record[field.name]}
-                          onCopy={copyToClipboard}
-                        />
-                      ))}
-                  </Stack>
-                </Card>
-              </Grid.Col>
-            )}
-
-            {/* System Information */}
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Card withBorder h="100%">
-                <Group gap="xs" mb="md">
-                  <IconCalendar size={18} />
-                  <Text fw={600}>System Information</Text>
-                </Group>
-                <Stack gap="sm">
-                  {systemFieldsData
-                    .filter(field => record[field.name] !== undefined)
-                    .map((field) => (
+                    {keyInformationFields.map((field) => (
                       <FieldRow
                         key={field.name}
                         field={field}
@@ -552,59 +620,120 @@ export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
                         onCopy={copyToClipboard}
                       />
                     ))}
-                </Stack>
-              </Card>
-            </Grid.Col>
+                  </Stack>
+                </Card>
+              </Grid.Col>
+            )}
 
-            {/* Standard Fields */}
-            {standardFields.some(field => record[field.name] !== undefined) && (
+            {/* System Information - Only show if there are matching fields */}
+            {systemInformationFields.length > 0 && (
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Card withBorder h="100%">
+                  <Group gap="xs" mb="md">
+                    <IconCalendar size={18} />
+                    <Text fw={600}>System Information</Text>
+                    <Badge size="xs" color="gray" variant="light">
+                      {systemInformationFields.length}
+                    </Badge>
+                  </Group>
+                  <Stack gap="sm">
+                    {systemInformationFields.map((field) => (
+                      <FieldRow
+                        key={field.name}
+                        field={field}
+                        value={record[field.name]}
+                        onCopy={copyToClipboard}
+                      />
+                    ))}
+                  </Stack>
+                </Card>
+              </Grid.Col>
+            )}
+
+            {/* Standard Fields - Only show if there are matching fields */}
+            {standardFieldsWithValues.length > 0 && (
               <Grid.Col span={12}>
                 <Card withBorder>
                   <Group gap="xs" mb="md">
                     <IconEye size={18} />
                     <Text fw={600}>Standard Fields</Text>
+                    <Badge size="xs" color="green" variant="light">
+                      {standardFieldsWithValues.length}
+                    </Badge>
                   </Group>
                   <Grid>
-                    {standardFields
-                      .filter(field => record[field.name] !== undefined)
-                      .map((field) => (
-                        <Grid.Col key={field.name} span={{ base: 12, sm: 6, lg: 4 }}>
-                          <FieldRow
-                            field={field}
-                            value={record[field.name]}
-                            onCopy={copyToClipboard}
-                          />
-                        </Grid.Col>
-                      ))}
+                    {standardFieldsWithValues.map((field) => (
+                      <Grid.Col key={field.name} span={{ base: 12, sm: 6, lg: 4 }}>
+                        <FieldRow
+                          field={field}
+                          value={record[field.name]}
+                          onCopy={copyToClipboard}
+                        />
+                      </Grid.Col>
+                    ))}
                   </Grid>
                 </Card>
               </Grid.Col>
             )}
 
-            {/* Custom Fields */}
-            {customFields.some(field => record[field.name] !== undefined) && (
+            {/* Custom Fields - Only show if there are matching fields */}
+            {customFieldsWithValues.length > 0 && (
               <Grid.Col span={12}>
                 <Card withBorder>
                   <Group gap="xs" mb="md">
                     <IconEdit size={18} />
                     <Text fw={600}>Custom Fields</Text>
+                    <Badge size="xs" color="orange" variant="light">
+                      {customFieldsWithValues.length}
+                    </Badge>
                   </Group>
                   <Grid>
-                    {customFields
-                      .filter(field => record[field.name] !== undefined)
-                      .map((field) => (
-                        <Grid.Col key={field.name} span={{ base: 12, sm: 6, lg: 4 }}>
-                          <FieldRow
-                            field={field}
-                            value={record[field.name]}
-                            onCopy={copyToClipboard}
-                          />
-                        </Grid.Col>
-                      ))}
+                    {customFieldsWithValues.map((field) => (
+                      <Grid.Col key={field.name} span={{ base: 12, sm: 6, lg: 4 }}>
+                        <FieldRow
+                          field={field}
+                          value={record[field.name]}
+                          onCopy={copyToClipboard}
+                        />
+                      </Grid.Col>
+                    ))}
                   </Grid>
                 </Card>
               </Grid.Col>
             )}
+
+            {/* No Results Message */}
+            {debouncedFieldSearchTerm &&
+              keyInformationFields.length === 0 &&
+              systemInformationFields.length === 0 &&
+              standardFieldsWithValues.length === 0 &&
+              customFieldsWithValues.length === 0 && (
+                <Grid.Col span={12}>
+                  <Card withBorder>
+                    <Center py="xl">
+                      <Stack align="center" gap="md">
+                        <IconSearch size={48} color="var(--mantine-color-gray-4)" />
+                        <div style={{ textAlign: 'center' }}>
+                          <Text fw={500} mb="xs">
+                            No fields found
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            No fields match your search for "{debouncedFieldSearchTerm}"
+                          </Text>
+                          <Button
+                            size="sm"
+                            variant="light"
+                            mt="md"
+                            onClick={() => setFieldSearchTerm('')}
+                          >
+                            Clear search
+                          </Button>
+                        </div>
+                      </Stack>
+                    </Center>
+                  </Card>
+                </Grid.Col>
+              )}
           </Grid>
         </Box>
       </ScrollArea>
