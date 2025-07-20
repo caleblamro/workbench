@@ -7,12 +7,9 @@ import {
   IconDatabase,
   IconEye,
   IconFilter,
-  IconKey,
-  IconLink,
   IconRefresh,
   IconSearch,
   IconTable,
-  IconTags,
   IconX,
 } from '@tabler/icons-react';
 import {
@@ -41,44 +38,13 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import type { ObjectMetadata } from '../lib/metadata-cache';
+import {
+  getFieldTypeColor,
+  getFieldTypeIcon,
+  type SalesforceField,
+  type SalesforceObject,
+} from '../lib/salesforce-field-utils';
 import { ObjectLink } from './ObjectLink';
-
-interface SalesforceObject {
-  name: string;
-  label: string;
-  labelPlural: string;
-  keyPrefix: string;
-  custom: boolean;
-  createable: boolean;
-  deletable: boolean;
-  queryable: boolean;
-  searchable: boolean;
-  updateable: boolean;
-  recordTypeInfos: any[];
-}
-
-interface SalesforceField {
-  name: string;
-  label: string;
-  type: string;
-  length: number;
-  precision: number;
-  scale: number;
-  nillable: boolean;
-  unique: boolean;
-  calculated: boolean;
-  custom: boolean;
-  createable: boolean;
-  updateable: boolean;
-  externalId: boolean;
-  idLookup: boolean;
-  picklistValues: Array<{ label: string; value: string; active: boolean }>;
-  relationshipName: string;
-  referenceTo: string[];
-  dependentPicklist: boolean;
-  controllerName: string;
-  soapType: string;
-}
 
 interface ObjectsResponse {
   sobjects: SalesforceObject[];
@@ -89,51 +55,6 @@ interface ObjectsResponse {
 
 // Client-side metadata cache
 const metadataCache = new Map<string, ObjectMetadata>();
-
-const getFieldTypeColor = (type: string): string => {
-  switch (type.toLowerCase()) {
-    case 'id':
-      return 'yellow';
-    case 'string':
-    case 'textarea':
-    case 'phone':
-    case 'email':
-    case 'url':
-      return 'blue';
-    case 'boolean':
-      return 'green';
-    case 'int':
-    case 'double':
-    case 'currency':
-    case 'percent':
-      return 'orange';
-    case 'date':
-    case 'datetime':
-    case 'time':
-      return 'cyan';
-    case 'reference':
-      return 'red';
-    case 'picklist':
-    case 'multipicklist':
-      return 'teal';
-    default:
-      return 'gray';
-  }
-};
-
-const getFieldTypeIcon = (type: string) => {
-  switch (type.toLowerCase()) {
-    case 'id':
-      return <IconKey size={14} />;
-    case 'reference':
-      return <IconLink size={14} />;
-    case 'picklist':
-    case 'multipicklist':
-      return <IconTags size={14} />;
-    default:
-      return <IconDatabase size={14} />;
-  }
-};
 
 export function ObjectInspector() {
   const { colorScheme } = useMantineColorScheme();
@@ -581,7 +502,7 @@ export function ObjectInspector() {
                       <Tabs.Tab value="details" leftSection={<IconBook size={16} />}>
                         Details
                       </Tabs.Tab>
-                      <Tabs.Tab value="relationships" leftSection={<IconLink size={16} />}>
+                      <Tabs.Tab value="relationships" leftSection={<IconTable size={16} />}>
                         Relationships ({objectMetadata.childRelationships.length})
                       </Tabs.Tab>
                     </Tabs.List>

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import Link from 'next/link';
 import { IconExternalLink, IconTable } from '@tabler/icons-react';
 import { ActionIcon, Anchor, Badge, Group, Text, Tooltip } from '@mantine/core';
@@ -31,8 +30,6 @@ export function ObjectLink({
   truncate = false,
   children,
 }: ObjectLinkProps) {
-  const [previewOpened, setPreviewOpened] = useState(false);
-
   const displayLabel = label || objectName;
   const linkHref = `/objects?object=${encodeURIComponent(objectName)}`;
 
@@ -71,18 +68,8 @@ export function ObjectLink({
 
   if (showPreview) {
     return (
-      <MetadataPreview
-        objectName={objectName}
-        opened={previewOpened}
-        onChange={setPreviewOpened}
-      >
-        <div
-          onMouseEnter={() => setPreviewOpened(true)}
-          onMouseLeave={() => setPreviewOpened(false)}
-          style={{ display: 'inline-block' }}
-        >
-          {linkElement}
-        </div>
+      <MetadataPreview objectName={objectName}>
+        {linkElement}
       </MetadataPreview>
     );
   }
@@ -108,8 +95,6 @@ export function ObjectLinkButton({
   showPreview = true,
   onClick,
 }: ObjectLinkButtonProps) {
-  const [previewOpened, setPreviewOpened] = useState(false);
-
   const handleClick = () => {
     onClick?.();
     // Navigate to objects page with the selected object
@@ -122,8 +107,6 @@ export function ObjectLinkButton({
         variant="subtle"
         size="sm"
         onClick={handleClick}
-        onMouseEnter={() => showPreview && setPreviewOpened(true)}
-        onMouseLeave={() => showPreview && setPreviewOpened(false)}
       >
         <IconTable size={14} />
       </ActionIcon>
@@ -132,11 +115,7 @@ export function ObjectLinkButton({
 
   if (showPreview) {
     return (
-      <MetadataPreview
-        objectName={objectName}
-        opened={previewOpened}
-        onChange={setPreviewOpened}
-      >
+      <MetadataPreview objectName={objectName}>
         {button}
       </MetadataPreview>
     );

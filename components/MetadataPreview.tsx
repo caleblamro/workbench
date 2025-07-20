@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { IconDatabase, IconEye, IconKey, IconLink, IconTable, IconTags } from '@tabler/icons-react';
+import { IconEye, IconTable } from '@tabler/icons-react';
 import {
   Badge,
   Box,
@@ -12,63 +12,18 @@ import {
   Text,
 } from '@mantine/core';
 import type { ObjectMetadata } from '../lib/metadata-cache';
+import { getFieldTypeColor, getFieldTypeIconSmall } from '../lib/salesforce-field-utils';
 
 interface MetadataPreviewProps {
   objectName: string;
   children: React.ReactNode;
-  opened?: boolean;
-  onChange?: (opened: boolean) => void;
 }
 
-const getFieldTypeColor = (type: string): string => {
-  switch (type.toLowerCase()) {
-    case 'id':
-      return 'yellow';
-    case 'string':
-    case 'textarea':
-    case 'phone':
-    case 'email':
-    case 'url':
-      return 'blue';
-    case 'boolean':
-      return 'green';
-    case 'int':
-    case 'double':
-    case 'currency':
-    case 'percent':
-      return 'orange';
-    case 'date':
-    case 'datetime':
-    case 'time':
-      return 'cyan';
-    case 'reference':
-      return 'red';
-    case 'picklist':
-    case 'multipicklist':
-      return 'teal';
-    default:
-      return 'gray';
-  }
-};
-
-const getFieldTypeIcon = (type: string) => {
-  switch (type.toLowerCase()) {
-    case 'id':
-      return <IconKey size={12} />;
-    case 'reference':
-      return <IconLink size={12} />;
-    case 'picklist':
-    case 'multipicklist':
-      return <IconTags size={12} />;
-    default:
-      return <IconDatabase size={12} />;
-  }
-};
-
-export function MetadataPreview({ objectName, children, opened, onChange }: MetadataPreviewProps) {
+export function MetadataPreview({ objectName, children }: MetadataPreviewProps) {
   const [metadata, setMetadata] = useState<ObjectMetadata | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [opened, setOpened] = useState(false);
 
   const loadMetadata = async () => {
     if (metadata || loading) {
@@ -92,23 +47,33 @@ export function MetadataPreview({ objectName, children, opened, onChange }: Meta
     }
   };
 
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen) {
-      loadMetadata();
-    }
-    onChange?.(isOpen);
+  const handleMouseEnter = () => {
+    setOpened(true);
+    loadMetadata();
+  };
+
+  const handleMouseLeave = () => {
+    setOpened(false);
   };
 
   return (
     <Popover
       width={400}
       position="bottom"
-      withArrow
       shadow="md"
       opened={opened}
-      onChange={handleOpenChange}
+      onChange={setOpened}
+      offset={{ mainAxis: 0, crossAxis: 0 }}
     >
-      <Popover.Target>{children}</Popover.Target>
+      <Popover.Target>
+        <div
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          style={{ display: 'inline-block' }}
+        >
+          {children}
+        </div>
+      </Popover.Target>
       <Popover.Dropdown>
         {loading ? (
           <Group justify="center" p="md">
@@ -125,7 +90,7 @@ export function MetadataPreview({ objectName, children, opened, onChange }: Meta
           </Box>
         ) : metadata ? (
           <ScrollArea.Autosize mah={400}>
-            <Stack gap="md" p="md">
+            <Stack gap="md">
               {/* Header */}
               <Group gap="xs">
                 <IconTable size={16} color={metadata.custom ? 'orange' : 'gray'} />
@@ -184,7 +149,7 @@ export function MetadataPreview({ objectName, children, opened, onChange }: Meta
                     .slice(0, 5)
                     .map((field) => (
                       <Group key={field.name} gap="xs" wrap="nowrap">
-                        {getFieldTypeIcon(field.type)}
+                        {getFieldTypeIconSmall(field.type)}
                         <Text size="xs" style={{ flex: 1 }} truncate>
                           {field.label}
                         </Text>
@@ -218,7 +183,7 @@ export function MetadataPreview({ objectName, children, opened, onChange }: Meta
                     <Stack gap="xs">
                       {metadata.childRelationships.slice(0, 3).map((rel, index) => (
                         <Group key={index} gap="xs" wrap="nowrap">
-                          <IconLink size={12} />
+                          <IconTable size={12} />
                           <Text size="xs" style={{ flex: 1 }} truncate>
                             {rel.childSObject}
                           </Text>
