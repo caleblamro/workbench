@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useHighlight } from '@mantine/code-highlight';
 import { Box, useComputedColorScheme, useMantineTheme } from '@mantine/core';
+import { getHotkeyHandler, HotkeyItem } from '@mantine/hooks';
 
 interface EditableCodeHighlightProps {
   value: string;
@@ -9,6 +10,7 @@ interface EditableCodeHighlightProps {
   placeholder?: string;
   minRows?: number;
   maxRows?: number;
+  onKeys?: HotkeyItem[];
 }
 
 export function EditableCodeHighlight({
@@ -18,6 +20,7 @@ export function EditableCodeHighlight({
   placeholder = 'Enter your code here...',
   minRows = 6,
   maxRows = 12,
+  onKeys,
 }: EditableCodeHighlightProps) {
   const theme = useMantineTheme();
   const colorScheme = useComputedColorScheme();
@@ -128,6 +131,7 @@ export function EditableCodeHighlight({
           wordWrap: 'break-word',
           caretColor: textColor,
         }}
+        onKeyDown={getHotkeyHandler(onKeys || [])}
       />
     </Box>
   );

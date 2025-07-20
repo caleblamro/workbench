@@ -18,6 +18,7 @@ import {
   Button,
   Card,
   Group,
+  Kbd,
   ScrollArea,
   Stack,
   Table,
@@ -173,7 +174,10 @@ const renderResultTable = ({
                           {header}
                         </Text>
                       </div>
-                    ) : header.endsWith('Id') && record[header] && typeof record[header] === 'string' && record[header].length >= 15 ? (
+                    ) : header.endsWith('Id') &&
+                      record[header] &&
+                      typeof record[header] === 'string' &&
+                      record[header].length >= 15 ? (
                       // Handle other ID fields (lookup/reference fields)
                       <div>
                         <Text size="sm" ff="monospace" truncate>
@@ -184,7 +188,9 @@ const renderResultTable = ({
                         </Text>
                       </div>
                     ) : record[header] === null || record[header] === undefined ? (
-                      <Text size="sm" c="dimmed" fs="italic">null</Text>
+                      <Text size="sm" c="dimmed" fs="italic">
+                        null
+                      </Text>
                     ) : typeof record[header] === 'object' ? (
                       <div>
                         <Text size="sm" ff="monospace">
@@ -383,14 +389,27 @@ export function SOQLQueryTool() {
                   placeholder="Enter your SOQL query here..."
                   minRows={6}
                   maxRows={12}
+                  onKeys={[['mod+Enter', executeQuery]]}
                 />
 
                 <Group>
                   <Button
                     leftSection={<IconPlayerPlay size={16} />}
+                    rightSection={
+                      <Group gap={2}>
+                        <Kbd size="xs">⌘</Kbd>
+                        <Kbd size="xs">↵</Kbd>
+                      </Group>
+                    }
                     onClick={executeQuery}
                     loading={isLoading}
                     disabled={!query.trim()}
+                    variant="filled"
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      minWidth: '160px',
+                    }}
                   >
                     Execute Query
                   </Button>

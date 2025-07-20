@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconEye, IconTable } from '@tabler/icons-react';
 import {
   Badge,
   Box,
+  Button,
   Divider,
   Group,
   Loader,
@@ -24,6 +25,10 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opened, setOpened] = useState(false);
+  const [shownFields, setShownFields] = useState(metadata?.fields.slice(0, 5) || []);
+  const [shownRelationships, setShownRelationships] = useState(
+    metadata?.childRelationships.slice(0, 3) || []
+  );
   const timeoutRef = useRef<NodeJS.Timeout>(null);
 
   const loadMetadata = async () => {
@@ -76,6 +81,13 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
     // Close when leaving popover content
     setOpened(false);
   };
+
+  useEffect(() => {
+    if (metadata?.fields) {
+      setShownFields(metadata?.fields.slice(0, 5) || []);
+      setShownRelationships(metadata?.childRelationships.slice(0, 3) || []);
+    }
+  }, [metadata]);
 
   return (
     <Popover
@@ -171,25 +183,28 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
 
                 {/* Key Fields Preview */}
                 <Stack gap="xs">
-                  {metadata.fields
-                    .filter((field) => field.name === 'Id' || field.externalId || field.unique)
-                    .slice(0, 5)
-                    .map((field) => (
-                      <Group key={field.name} gap="xs" wrap="nowrap">
-                        {getFieldTypeIconSmall(field.type)}
-                        <Text size="xs" style={{ flex: 1 }} truncate>
-                          {field.label}
-                        </Text>
-                        <Badge size="xs" color={getFieldTypeColor(field.type)} variant="light">
-                          {field.type}
-                        </Badge>
-                      </Group>
-                    ))}
+                  {shownFields.map((field) => (
+                    <Group key={field.name} gap="xs" wrap="nowrap">
+                      {getFieldTypeIconSmall(field.type)}
+                      <Text size="xs" style={{ flex: 1 }} truncate>
+                        {field.label}
+                      </Text>
+                      <Badge size="xs" color={getFieldTypeColor(field.type)} variant="light">
+                        {field.type}
+                      </Badge>
+                    </Group>
+                  ))}
 
-                  {metadata.fields.length > 5 && (
-                    <Text size="xs" c="dimmed" ta="center">
+                  {metadata.fields.length > 5 && shownFields.length <= 5 && (
+                    <Button
+                      variant="transparent"
+                      size="xs"
+                      c="dimmed"
+                      ta="center"
+                      onClick={() => setShownFields(metadata.fields)}
+                    >
                       +{metadata.fields.length - 5} more fields
-                    </Text>
+                    </Button>
                   )}
                 </Stack>
               </Stack>
@@ -208,7 +223,7 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
                       </Text>
                     </Group>
                     <Stack gap="xs">
-                      {metadata.childRelationships.slice(0, 3).map((rel, index) => (
+                      {shownRelationships.map((rel, index) => (
                         <Group key={index} gap="xs" wrap="nowrap">
                           <IconTable size={12} />
                           <Text size="xs" style={{ flex: 1 }} truncate>
@@ -216,10 +231,16 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
                           </Text>
                         </Group>
                       ))}
-                      {metadata.childRelationships.length > 3 && (
-                        <Text size="xs" c="dimmed" ta="center">
-                          +{metadata.childRelationships.length - 3} more
-                        </Text>
+                      {metadata.childRelationships.length > 3 && shownRelationships.length <= 3 && (
+                        <Button
+                          variant="transparent"
+                          size="xs"
+                          c="dimmed"
+                          ta="center"
+                          onClick={() => setShownRelationships(metadata.childRelationships)}
+                        >
+                          +{metadata.childRelationships.length - 3} more relationships
+                        </Button>
                       )}
                     </Stack>
                   </Stack>
