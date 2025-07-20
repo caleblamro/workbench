@@ -10,7 +10,7 @@ import {
   IconPlayerPlay,
   IconTrash,
 } from '@tabler/icons-react';
-import { CodeHighlight } from '@mantine/code-highlight';
+import { CodeHighlight, CodeHighlightControl } from '@mantine/code-highlight';
 import {
   ActionIcon,
   Alert,
@@ -228,6 +228,10 @@ export function SOQLQueryTool() {
     key: 'soql-query-history',
     defaultValue: [],
   });
+  const [activeTab, setActiveTab] = useLocalStorage<string>({
+    key: 'active-soql-tab',
+    defaultValue: 'query',
+  });
 
   const executeQuery = async () => {
     if (!query.trim()) {
@@ -312,8 +316,10 @@ export function SOQLQueryTool() {
 
   const loadExampleQuery = (exampleQuery: string) => {
     setQuery(exampleQuery);
+    setActiveTab('query');
     setError(null);
     setResult(null);
+    executeQuery();
   };
 
   const loadFromHistory = (historyItem: QueryHistoryItem) => {
@@ -340,7 +346,7 @@ export function SOQLQueryTool() {
         <Text c="dimmed">Execute SOQL queries against your Salesforce org</Text>
       </div>
 
-      <Tabs defaultValue="query">
+      <Tabs defaultValue="query" value={activeTab} onChange={(val) => setActiveTab(val || 'query')}>
         <Tabs.List>
           <Tabs.Tab value="query" leftSection={<IconCode size={16} />}>
             Query
@@ -447,12 +453,7 @@ export function SOQLQueryTool() {
           <Stack gap="md">
             <Text>Click on any example below to load it into the query editor:</Text>
             {EXAMPLE_QUERIES.map((example, index) => (
-              <Card
-                key={index}
-                withBorder
-                style={{ cursor: 'pointer' }}
-                onClick={() => loadExampleQuery(example.query)}
-              >
+              <Card key={index} withBorder>
                 <Stack gap="xs">
                   <Group justify="space-between">
                     <Text fw={500}>{example.name}</Text>
@@ -465,6 +466,14 @@ export function SOQLQueryTool() {
                     language="sql"
                     copyLabel="Copy query"
                     copiedLabel="Copied!"
+                    controls={[
+                      <CodeHighlightControl
+                        tooltipLabel="Execute query"
+                        onClick={() => loadExampleQuery(example.query)}
+                      >
+                        <IconPlayerPlay />
+                      </CodeHighlightControl>,
+                    ]}
                   />
                 </Stack>
               </Card>

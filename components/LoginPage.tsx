@@ -54,7 +54,7 @@ export function LoginPage({ error }: LoginPageProps) {
             )}
 
             <div>
-              <Text size="sm" c="dimmed" mb="xs">
+              <Text size="sm" c="dimmed" mb="xs" style={{ textAlign: 'center' }}>
                 Sign in with your Salesforce credentials
               </Text>
 
