@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 import {
   IconBook,
   IconCode,
@@ -20,6 +21,7 @@ import {
   Badge,
   Button,
   Card,
+  Center,
   Checkbox,
   Divider,
   Group,
@@ -34,9 +36,12 @@ import {
   TextInput,
   Title,
   Tooltip,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
+import type { ObjectMetadata } from '../lib/metadata-cache';
+import { ObjectLink } from './ObjectLink';
 
 interface SalesforceObject {
   name: string;
@@ -75,29 +80,15 @@ interface SalesforceField {
   soapType: string;
 }
 
-interface ObjectMetadata {
-  name: string;
-  label: string;
-  labelPlural: string;
-  keyPrefix: string;
-  custom: boolean;
-  createable: boolean;
-  deletable: boolean;
-  queryable: boolean;
-  searchable: boolean;
-  updateable: boolean;
-  fields: SalesforceField[];
-  childRelationships: Array<{
-    childSObject: string;
-    field: string;
-    relationshipName: string;
-  }>;
-  recordTypeInfos: Array<{
-    name: string;
-    recordTypeId: string;
-    active: boolean;
-  }>;
+interface ObjectsResponse {
+  sobjects: SalesforceObject[];
+  totalCount: number;
+  hasMore: boolean;
+  nextOffset: number;
 }
+
+// Client-side metadata cache
+const metadataCache = new Map<string, ObjectMetadata>();
 
 const getFieldTypeColor = (type: string): string => {
   switch (type.toLowerCase()) {
@@ -119,7 +110,7 @@ const getFieldTypeColor = (type: string): string => {
     case 'date':
     case 'datetime':
     case 'time':
-      return 'purple';
+      return 'cyan';
     case 'reference':
       return 'red';
     case 'picklist':
@@ -145,41 +136,58 @@ const getFieldTypeIcon = (type: string) => {
 };
 
 export function ObjectInspector() {
-  const [objects, setObjects] = useState<SalesforceObject[]>([]);
+  const { colorScheme } = useMantineColorScheme();
+  const router = useRouter();
+  const [allObjects, setAllObjects] = useState<SalesforceObject[]>([]);
   const [filteredObjects, setFilteredObjects] = useState<SalesforceObject[]>([]);
   const [selectedObject, setSelectedObject] = useState<string | null>(null);
   const [objectMetadata, setObjectMetadata] = useState<ObjectMetadata | null>(null);
   const [isLoadingObjects, setIsLoadingObjects] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
   const [filterType, setFilterType] = useState<string | null>('all');
   const [showCustomOnly, setShowCustomOnly] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    details: true,
-    fields: true,
-  });
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [nextOffset, setNextOffset] = useState(0);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadObjects();
+    loadInitialObjects();
   }, []);
 
   useEffect(() => {
     filterObjects();
-  }, [objects, debouncedSearchTerm, filterType, showCustomOnly]);
+  }, [allObjects, debouncedSearchTerm, filterType, showCustomOnly]);
 
-  const loadObjects = async () => {
+  // Handle URL parameter for selected object
+  useEffect(() => {
+    const { object } = router.query;
+    if (object && typeof object === 'string' && object !== selectedObject) {
+      setSelectedObject(object);
+      loadObjectMetadata(object);
+    }
+  }, [router.query, selectedObject]);
+
+  const loadInitialObjects = async () => {
     setIsLoadingObjects(true);
     setError(null);
+    setAllObjects([]);
+    setNextOffset(0);
 
     try {
-      const response = await fetch('/api/salesforce/objects');
+      const response = await fetch('/api/salesforce/objects?limit=50&offset=0');
       if (!response.ok) {
         throw new Error('Failed to fetch objects');
       }
-      const data = await response.json();
-      setObjects(data.sobjects || []);
+      const data: ObjectsResponse = await response.json();
+      setAllObjects(data.sobjects || []);
+      setHasMore(data.hasMore);
+      setTotalCount(data.totalCount);
+      setNextOffset(data.nextOffset);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
@@ -193,7 +201,40 @@ export function ObjectInspector() {
     }
   };
 
+  const loadMoreObjects = async () => {
+    if (!hasMore || isLoadingMore) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(`/api/salesforce/objects?limit=50&offset=${nextOffset}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch more objects');
+      }
+      const data: ObjectsResponse = await response.json();
+      setAllObjects((prev) => [...prev, ...data.sobjects]);
+      setHasMore(data.hasMore);
+      setNextOffset(data.nextOffset);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      notifications.show({
+        title: 'Error',
+        message: errorMessage,
+        color: 'red',
+      });
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
   const loadObjectMetadata = async (objectName: string) => {
+    // Check cache first
+    if (metadataCache.has(objectName)) {
+      setObjectMetadata(metadataCache.get(objectName)!);
+      return;
+    }
+
     setIsLoadingMetadata(true);
     setError(null);
 
@@ -203,6 +244,9 @@ export function ObjectInspector() {
         throw new Error(`Failed to fetch metadata for ${objectName}`);
       }
       const data = await response.json();
+
+      // Cache the metadata
+      metadataCache.set(objectName, data);
       setObjectMetadata(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -218,7 +262,7 @@ export function ObjectInspector() {
   };
 
   const filterObjects = () => {
-    let filtered = [...objects];
+    let filtered = [...allObjects];
 
     // Filter by search term
     if (debouncedSearchTerm) {
@@ -257,6 +301,15 @@ export function ObjectInspector() {
 
   const handleObjectSelect = (objectName: string) => {
     setSelectedObject(objectName);
+    // Update URL parameter
+    router.replace(
+      {
+        pathname: router.pathname,
+        query: { ...router.query, object: objectName },
+      },
+      undefined,
+      { shallow: true }
+    );
     loadObjectMetadata(objectName);
   };
 
@@ -269,13 +322,6 @@ export function ObjectInspector() {
     });
   };
 
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
-
   const generateSampleQuery = (objectName: string, fields: SalesforceField[]) => {
     const queryableFields = fields
       .filter((field) => !field.calculated && field.name !== 'Id')
@@ -286,8 +332,34 @@ export function ObjectInspector() {
     return `SELECT ${allFields.join(', ')} FROM ${objectName} LIMIT 10`;
   };
 
+  const handleScroll = useCallback(() => {
+    // For Mantine ScrollArea, we need to get the actual scroll container
+    const scrollContainer = scrollAreaRef.current?.querySelector(
+      '.mantine-ScrollArea-viewport'
+    ) as HTMLElement;
+    if (!scrollContainer) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+
+    // Trigger load more when user scrolls to within 100px of bottom
+    if (scrollHeight - scrollTop <= clientHeight + 100 && hasMore && !isLoadingMore) {
+      loadMoreObjects();
+    }
+  }, [hasMore, isLoadingMore, loadMoreObjects]);
+
+  // Theme-aware colors
+  const borderColor =
+    colorScheme === 'dark' ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-3)';
+  const selectedBgColor =
+    colorScheme === 'dark' ? 'var(--mantine-color-blue-9)' : 'var(--mantine-color-blue-0)';
+
+  // Calculate height: 100vh - header height - padding
+  const containerHeight = 'calc(100vh - 60px - 2rem)';
+
   return (
-    <Stack gap="lg" py="md">
+    <Stack gap="lg" py="md" style={{ height: containerHeight }}>
       <div>
         <Title order={2} mb="xs">
           Object Inspector
@@ -298,14 +370,14 @@ export function ObjectInspector() {
       <Group>
         <Button
           leftSection={<IconRefresh size={16} />}
-          onClick={loadObjects}
+          onClick={loadInitialObjects}
           loading={isLoadingObjects}
           variant="light"
         >
           Refresh Objects
         </Button>
         <Text size="sm" c="dimmed">
-          {filteredObjects.length} of {objects.length} objects
+          {filteredObjects.length} of {totalCount} objects
         </Text>
       </Group>
 
@@ -315,13 +387,13 @@ export function ObjectInspector() {
         </Alert>
       )}
 
-      <div style={{ display: 'flex', gap: '1rem', height: '800px' }}>
+      <div style={{ display: 'flex', gap: '1rem', flex: 1, minHeight: 0 }}>
         {/* Objects List */}
         <Paper
           withBorder
           style={{ flex: '0 0 400px', display: 'flex', flexDirection: 'column', width: 420 }}
         >
-          <div style={{ padding: '1rem', borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+          <div style={{ padding: '1rem', borderBottom: `1px solid ${borderColor}` }}>
             <Stack gap="sm">
               <TextInput
                 placeholder="Search objects..."
@@ -364,12 +436,12 @@ export function ObjectInspector() {
             </Stack>
           </div>
 
-          <ScrollArea style={{ flex: 1 }}>
+          <ScrollArea style={{ flex: 1 }} ref={scrollAreaRef} onScrollPositionChange={handleScroll}>
             <div style={{ padding: '0.5rem' }}>
               {isLoadingObjects ? (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                <Center py="xl">
                   <Loader size="md" />
-                </div>
+                </Center>
               ) : (
                 <Stack gap="xs">
                   {filteredObjects.map((obj) => (
@@ -379,15 +451,14 @@ export function ObjectInspector() {
                       withBorder={selectedObject === obj.name}
                       style={{
                         cursor: 'pointer',
-                        backgroundColor:
-                          selectedObject === obj.name ? 'var(--mantine-color-blue-0)' : undefined,
+                        backgroundColor: selectedObject === obj.name ? selectedBgColor : undefined,
                       }}
                       onClick={() => handleObjectSelect(obj.name)}
                     >
                       <Group justify="space-between" wrap="nowrap">
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <Group gap="xs">
-                            <IconTable size={16} color={obj.custom ? 'orange' : 'blue'} />
+                            <IconTable size={16} color={obj.custom ? 'orange' : 'gray'} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <Text size="sm" fw={500} truncate>
                                 {obj.label}
@@ -413,6 +484,25 @@ export function ObjectInspector() {
                       </Group>
                     </Card>
                   ))}
+
+                  {isLoadingMore && (
+                    <Center py="md">
+                      <Group gap="xs">
+                        <Loader size="sm" />
+                        <Text size="sm" c="dimmed">
+                          Loading more objects...
+                        </Text>
+                      </Group>
+                    </Center>
+                  )}
+
+                  {!hasMore && allObjects.length > 0 && (
+                    <Center py="md">
+                      <Text size="sm" c="dimmed">
+                        All objects loaded
+                      </Text>
+                    </Center>
+                  )}
                 </Stack>
               )}
             </div>
@@ -452,13 +542,11 @@ export function ObjectInspector() {
           ) : objectMetadata ? (
             <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               {/* Header */}
-              <div
-                style={{ padding: '1rem', borderBottom: '1px solid var(--mantine-color-gray-3)' }}
-              >
+              <div style={{ padding: '1rem', borderBottom: `1px solid ${borderColor}` }}>
                 <Group justify="space-between">
                   <div>
                     <Group gap="xs">
-                      <IconTable size={20} color={objectMetadata.custom ? 'orange' : 'blue'} />
+                      <IconTable size={20} color={objectMetadata.custom ? 'orange' : 'gray'} />
                       <Title order={3}>{objectMetadata.label}</Title>
                       {objectMetadata.custom && <Badge color="orange">Custom</Badge>}
                     </Group>
@@ -710,13 +798,20 @@ export function ObjectInspector() {
                                     <Table.Th>Child Object</Table.Th>
                                     <Table.Th>Field</Table.Th>
                                     <Table.Th>Relationship Name</Table.Th>
+                                    <Table.Th>Actions</Table.Th>
                                   </Table.Tr>
                                 </Table.Thead>
                                 <Table.Tbody>
                                   {objectMetadata.childRelationships.map((rel, index) => (
                                     <Table.Tr key={index}>
                                       <Table.Td>
-                                        <Text size="sm">{rel.childSObject}</Text>
+                                        <ObjectLink
+                                          objectName={rel.childSObject}
+                                          showIcon={false}
+                                          showPreview
+                                          variant="link"
+                                          size="sm"
+                                        />
                                       </Table.Td>
                                       <Table.Td>
                                         <Text size="sm" ff="monospace">
@@ -727,6 +822,22 @@ export function ObjectInspector() {
                                         <Text size="sm" ff="monospace">
                                           {rel.relationshipName || 'N/A'}
                                         </Text>
+                                      </Table.Td>
+                                      <Table.Td>
+                                        <Tooltip label="Copy relationship name">
+                                          <ActionIcon
+                                            size="sm"
+                                            variant="subtle"
+                                            onClick={() =>
+                                              copyToClipboard(
+                                                rel.relationshipName || rel.field,
+                                                'Relationship name'
+                                              )
+                                            }
+                                          >
+                                            <IconCopy size={14} />
+                                          </ActionIcon>
+                                        </Tooltip>
                                       </Table.Td>
                                     </Table.Tr>
                                   ))}

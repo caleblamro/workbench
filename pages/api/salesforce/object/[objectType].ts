@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getSalesforceConnection, getObjectMetadata } from '../../../../lib/salesforce';
+import { getSalesforceConnection } from '../../../../lib/salesforce';
+import { getObjectMetadataWithCache } from '../../../../lib/metadata-cache';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -19,7 +20,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const metadata = await getObjectMetadata(connection, objectType);
+    const metadata = await getObjectMetadataWithCache(connection, objectType);
+    
+    // Add cache headers to indicate this response can be cached by the browser
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     res.status(200).json(metadata);
   } catch (error) {
     res.status(500).json({
