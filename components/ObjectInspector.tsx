@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
   IconBook,
@@ -60,7 +60,6 @@ export function ObjectInspector() {
   const { colorScheme } = useMantineColorScheme();
   const router = useRouter();
   const [allObjects, setAllObjects] = useState<SalesforceObject[]>([]);
-  const [filteredObjects, setFilteredObjects] = useState<SalesforceObject[]>([]);
   const [selectedObject, setSelectedObject] = useState<string | null>(null);
   const [objectMetadata, setObjectMetadata] = useState<ObjectMetadata | null>(null);
   const [isLoadingObjects, setIsLoadingObjects] = useState(false);
@@ -77,7 +76,6 @@ export function ObjectInspector() {
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [nextOffset, setNextOffset] = useState(0);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadInitialObjects();
@@ -107,13 +105,12 @@ export function ObjectInspector() {
     setNextOffset(0);
 
     try {
-      const response = await fetch('/api/salesforce/objects?limit=50&offset=0');
+      const response = await fetch('/api/salesforce/objects?limit=20&offset=0');
       if (!response.ok) {
         throw new Error('Failed to fetch objects');
       }
       const data: ObjectsResponse = await response.json();
       setAllObjects(data.sobjects || []);
-      setFilteredObjects(data.sobjects || []);
       setHasMore(data.hasMore);
       setTotalCount(data.totalCount);
       setNextOffset(data.nextOffset);
@@ -130,14 +127,18 @@ export function ObjectInspector() {
     }
   };
 
-  const loadMoreObjects = async () => {
+  const loadMoreObjects = useCallback(async () => {
     if (!hasMore || isLoadingMore) {
       return;
     }
 
     setIsLoadingMore(true);
     try {
-      const response = await fetch(`/api/salesforce/objects?limit=50&offset=${nextOffset}`);
+      const url = debouncedSearchTerm
+        ? `/api/salesforce/objects-search?limit=20&offset=${nextOffset}&search=${encodeURIComponent(debouncedSearchTerm)}&filter=${filterType || 'all'}`
+        : `/api/salesforce/objects?limit=20&offset=${nextOffset}`;
+
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch more objects');
       }
@@ -155,7 +156,7 @@ export function ObjectInspector() {
     } finally {
       setIsLoadingMore(false);
     }
-  };
+  }, [hasMore, isLoadingMore, nextOffset, debouncedSearchTerm, filterType]);
 
   const loadObjectMetadata = async (objectName: string) => {
     // Check cache first
@@ -193,6 +194,8 @@ export function ObjectInspector() {
   const searchObjects = async () => {
     setIsSearching(true);
     setError(null);
+    setAllObjects([]);
+    setNextOffset(0);
 
     try {
       const params = new URLSearchParams({
@@ -211,7 +214,6 @@ export function ObjectInspector() {
       }
       const data: ObjectsResponse = await response.json();
       setAllObjects(data.sobjects || []);
-      setFilteredObjects(data.sobjects || []);
       setHasMore(data.hasMore);
       setTotalCount(data.totalCount);
       setNextOffset(data.nextOffset);
@@ -261,11 +263,13 @@ export function ObjectInspector() {
     return `SELECT ${allFields.join(', ')} FROM ${objectName} LIMIT 10`;
   };
 
-  const handleScroll = useCallback(() => {
-    // For Mantine ScrollArea, we need to get the actual scroll container
-    const scrollContainer = scrollAreaRef.current?.querySelector(
-      '.mantine-ScrollArea-viewport'
-    ) as HTMLElement;
+  // Fixed scroll handler that uses Mantine's scroll position callback properly
+  const handleScrollPositionChange = useCallback(() => {
+    // We need to get the scroll container to check if we're near the bottom
+    const scrollContainer = document
+      .querySelector('[data-mantine-scrollarea]')
+      ?.querySelector('.mantine-ScrollArea-viewport') as HTMLElement;
+
     if (!scrollContainer) {
       return;
     }
@@ -306,7 +310,7 @@ export function ObjectInspector() {
           Refresh Objects
         </Button>
         <Text size="sm" c="dimmed">
-          {filteredObjects.length} of {totalCount} objects
+          {allObjects.length} of {totalCount} objects
           {debouncedSearchTerm && ` (searching: "${debouncedSearchTerm}")`}
         </Text>
       </Group>
@@ -366,18 +370,24 @@ export function ObjectInspector() {
             </Stack>
           </div>
 
-          <ScrollArea style={{ flex: 1 }} ref={scrollAreaRef} onScrollPositionChange={handleScroll}>
+          <ScrollArea
+            style={{ flex: 1 }}
+            onScrollPositionChange={handleScrollPositionChange}
+            data-mantine-scrollarea
+          >
             <div style={{ padding: '0.5rem' }}>
               {isLoadingObjects || isSearching ? (
                 <Center py="xl">
-                  <Loader size="md" />
-                  <Text size="sm" c="dimmed">
-                    {isSearching ? 'Searching objects...' : 'Loading objects...'}
-                  </Text>
+                  <Group gap="xs">
+                    <Loader size="md" />
+                    <Text size="sm" c="dimmed">
+                      {isSearching ? 'Searching objects...' : 'Loading objects...'}
+                    </Text>
+                  </Group>
                 </Center>
               ) : (
                 <Stack gap="xs">
-                  {filteredObjects.map((obj) => (
+                  {allObjects.map((obj) => (
                     <Card
                       key={obj.name}
                       padding="sm"
@@ -432,10 +442,21 @@ export function ObjectInspector() {
                   {!hasMore && allObjects.length > 0 && (
                     <Center py="md">
                       <Text size="sm" c="dimmed">
-                        All objects loaded
+                        All objects loaded ({allObjects.length} total)
                       </Text>
                     </Center>
                   )}
+
+                  {!isLoadingMore &&
+                    allObjects.length === 0 &&
+                    !isLoadingObjects &&
+                    !isSearching && (
+                      <Center py="xl">
+                        <Text size="sm" c="dimmed">
+                          No objects found
+                        </Text>
+                      </Center>
+                    )}
                 </Stack>
               )}
             </div>
