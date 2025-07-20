@@ -24,7 +24,7 @@ export function MetadataPreview({ objectName, children }: MetadataPreviewProps) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opened, setOpened] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout>(null);
 
   const loadMetadata = async () => {
     if (metadata || loading) {

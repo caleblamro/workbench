@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getSalesforceConnection, salesforceApiCall } from '../../../../../lib/salesforce';
+import { getSalesforceConnection, salesforceApiCall, getObjectMetadata } from '../../../../../lib/salesforce';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -23,24 +23,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // First, get the object metadata to determine available fields
-    const metadataResponse = await salesforceApiCall(
-      connection,
-      `/services/data/v58.0/sobjects/${objectType}/describe/`
-    );
-
-    if (!metadataResponse.ok) {
-      throw new Error(`Failed to get metadata for ${objectType}: ${metadataResponse.statusText}`);
-    }
-
-    const metadata = await metadataResponse.json();
+    const metadata = await getObjectMetadata(connection, objectType);
     
-    // Get all queryable fields
+    // Get all queryable fields (keep it simple)
     const queryableFields = metadata.fields
-      .filter((field: any) => !field.calculated && field.name !== 'CreatedDate' && field.name !== 'LastModifiedDate')
+      .filter((field: any) => !field.calculated)
       .map((field: any) => field.name);
 
     // Always include essential fields
-    const essentialFields = ['Id', 'CreatedDate', 'LastModifiedDate', 'CreatedBy.Name', 'LastModifiedBy.Name'];
+    const essentialFields = ['Id', 'CreatedDate', 'LastModifiedDate'];
     const allFields = [...new Set([...essentialFields, ...queryableFields])];
 
     // Build SOQL query

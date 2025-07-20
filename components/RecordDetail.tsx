@@ -1,35 +1,40 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
+  IconArrowLeft,
   IconCalendar,
+  IconCheck,
   IconCopy,
   IconEdit,
   IconExternalLink,
   IconEye,
-  IconKey,
+  IconLink,
+  IconMail,
+  IconPhone,
   IconRefresh,
-  IconTable,
-  IconUser,
+  IconX,
 } from '@tabler/icons-react';
 import {
   ActionIcon,
   Alert,
+  Anchor,
   Badge,
   Box,
   Button,
   Card,
   Center,
-  Divider,
+  Grid,
   Group,
   Loader,
   ScrollArea,
   Stack,
-  Table,
   Text,
   Title,
   Tooltip,
+  UnstyledButton,
   useMantineColorScheme,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { 
   getFieldTypeColor, 
@@ -37,6 +42,7 @@ import {
   type SalesforceField 
 } from '../lib/salesforce-field-utils';
 import { ObjectLink } from './ObjectLink';
+import { RecordLink } from './RecordLink';
 
 interface RecordData {
   record: Record<string, any>;
@@ -54,12 +60,286 @@ interface RecordDetailProps {
   recordId: string;
 }
 
+interface FieldRowProps {
+  field: SalesforceField;
+  value: any;
+  onCopy: (text: string, label: string) => void;
+}
+
+function FieldRow({ field, value, onCopy }: FieldRowProps) {
+  const { colorScheme } = useMantineColorScheme();
+  
+  const renderValue = () => {
+    if (value === null || value === undefined) {
+      return <Text size="sm" c="dimmed" fs="italic">—</Text>;
+    }
+
+    // Handle ID fields (18-character Salesforce IDs)
+    if (field.type.toLowerCase() === 'id' || (field.name === 'Id' && typeof value === 'string' && value.length >= 15)) {
+      // Try to determine the object type from the ID prefix
+      // This is a simplified approach - in a real implementation you might want to maintain a mapping
+      const idPrefix = value.substring(0, 3);
+      
+      // Some common prefixes - you could expand this or fetch from Salesforce
+      const prefixToObject: Record<string, string> = {
+        '001': 'Account',
+        '003': 'Contact', 
+        '006': 'Opportunity',
+        '00Q': 'Lead',
+        '500': 'Case',
+        '0D5': 'OpportunityLineItem',
+      };
+      
+      const objectType = prefixToObject[idPrefix];
+      
+      if (objectType && field.name !== 'Id') {
+        // This is a reference ID field, create a link to the related record
+        return (
+          <RecordLink
+            objectType={objectType}
+            recordId={value}
+            label={value}
+            size="sm"
+            truncate
+          />
+        );
+      } else {
+        // This is the main record ID, just show it (already linked via the page)
+        return (
+          <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
+            {String(value)}
+          </Text>
+        );
+      }
+    }
+
+    // Handle reference/lookup fields (relationship fields)
+    if (field.type.toLowerCase() === 'reference' && typeof value === 'string') {
+      // Check if we have reference info from referenceTo
+      const referencedObject = field.referenceTo?.[0];
+      
+      if (referencedObject && value.length >= 15) {
+        return (
+          <RecordLink
+            objectType={referencedObject}
+            recordId={value}
+            label={value}
+            size="sm"
+            truncate
+          />
+        );
+      }
+      
+      return (
+        <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
+          {String(value)}
+        </Text>
+      );
+    }
+
+    // Handle relationship fields (objects with nested data)
+    if (typeof value === 'object' && value.attributes) {
+      const relatedRecordName = value.Name || value.Title || value.Subject || value.Id;
+      const relatedObjectType = value.attributes.type;
+      
+      if (value.Id) {
+        return (
+          <RecordLink
+            objectType={relatedObjectType}
+            recordId={value.Id}
+            label={relatedRecordName}
+            size="sm"
+            truncate
+          />
+        );
+      } else {
+        return (
+          <ObjectLink
+            objectName={relatedObjectType}
+            label={relatedRecordName}
+            showIcon={false}
+            size="sm"
+          />
+        );
+      }
+    }
+
+    // Handle different field types
+    switch (field.type.toLowerCase()) {
+      case 'url':
+        return (
+          <Anchor 
+            href={String(value)} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            size="sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            <Text truncate style={{ maxWidth: 250 }}>{String(value)}</Text>
+            <IconExternalLink size={12} />
+          </Anchor>
+        );
+      
+      case 'email':
+        return (
+          <Anchor 
+            href={`mailto:${value}`}
+            size="sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            <IconMail size={14} />
+            {String(value)}
+          </Anchor>
+        );
+      
+      case 'phone':
+        return (
+          <Anchor 
+            href={`tel:${value}`}
+            size="sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            <IconPhone size={14} />
+            {String(value)}
+          </Anchor>
+        );
+      
+      case 'boolean':
+        return (
+          <Group gap="xs">
+            {value ? <IconCheck size={16} color="var(--mantine-color-green-6)" /> : <IconX size={16} color="var(--mantine-color-red-6)" />}
+            <Text size="sm" c={value ? 'green' : 'red'}>
+              {value ? 'Yes' : 'No'}
+            </Text>
+          </Group>
+        );
+      
+      case 'date':
+      case 'datetime':
+        return (
+          <Group gap="xs">
+            <IconCalendar size={14} />
+            <Text size="sm">
+              {new Date(value).toLocaleString()}
+            </Text>
+          </Group>
+        );
+      
+      case 'currency':
+        return (
+          <Text size="sm" fw={500} c="green">
+            ${Number(value).toLocaleString()}
+          </Text>
+        );
+      
+      case 'percent':
+        return (
+          <Text size="sm" fw={500}>
+            {Number(value).toLocaleString()}%
+          </Text>
+        );
+      
+      case 'picklist':
+      case 'multipicklist':
+        return (
+          <Badge size="sm" color="blue" variant="dot">
+            {String(value)}
+          </Badge>
+        );
+      
+      case 'textarea':
+        return (
+          <Text size="sm" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {String(value)}
+          </Text>
+        );
+      
+      default:
+        return (
+          <Text size="sm" style={{ wordBreak: 'break-word' }}>
+            {String(value)}
+          </Text>
+        );
+    }
+  };
+
+  return (
+    <Box 
+      p="sm" 
+      style={{
+        borderRadius: 'var(--mantine-radius-sm)',
+        backgroundColor: colorScheme === 'dark' ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)',
+        border: `1px solid ${colorScheme === 'dark' ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-2)'}`
+      }}
+    >
+      <Group justify="space-between" align="flex-start">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Group gap="xs" mb={2}>
+            {getFieldTypeIcon(field.type)}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Text size="xs" fw={500} c="dimmed" tt="uppercase" mb={2}>
+                {field.label}
+              </Text>
+              <Text size="xs" c="dimmed" ff="monospace" style={{ opacity: 0.7 }}>
+                {field.name}
+              </Text>
+            </div>
+            <Badge size="xs" color={getFieldTypeColor(field.type)} variant="dot">
+              {field.type}
+            </Badge>
+          </Group>
+          <Box mt="xs">
+            {renderValue()}
+          </Box>
+          
+          {/* Additional field metadata */}
+          {(field.unique || field.externalId || !field.nillable || field.calculated) && (
+            <Group gap="xs" mt="xs">
+              {field.unique && (
+                <Badge size="xs" color="purple" variant="light">
+                  Unique
+                </Badge>
+              )}
+              {field.externalId && (
+                <Badge size="xs" color="red" variant="light">
+                  External ID
+                </Badge>
+              )}
+              {!field.nillable && field.name !== 'Id' && (
+                <Badge size="xs" color="blue" variant="light">
+                  Required
+                </Badge>
+              )}
+              {field.calculated && (
+                <Badge size="xs" color="gray" variant="light">
+                  Calculated
+                </Badge>
+              )}
+            </Group>
+          )}
+        </div>
+        <Tooltip label="Copy value">
+          <ActionIcon
+            size="sm"
+            variant="subtle"
+            onClick={() => onCopy(String(value || ''), field.label)}
+          >
+            <IconCopy size={12} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+    </Box>
+  );
+}
+
 export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
   const { colorScheme } = useMantineColorScheme();
   const router = useRouter();
   const [recordData, setRecordData] = useState<RecordData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fieldSearchTerm, setFieldSearchTerm] = useState('');
+  const [debouncedFieldSearchTerm] = useDebouncedValue(fieldSearchTerm, 300);
 
   useEffect(() => {
     if (objectType && recordId) {
@@ -101,138 +381,39 @@ export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
     });
   };
 
-  const formatFieldValue = (field: SalesforceField, value: any) => {
-    if (value === null || value === undefined) {
-      return <Text size="sm" c="dimmed" fs="italic">null</Text>;
-    }
-
-    // Handle relationship fields (objects)
-    if (typeof value === 'object' && value.attributes) {
-      return (
-        <ObjectLink
-          objectName={value.attributes.type}
-          label={value.Name || value.Id}
-          showIcon={false}
-          size="sm"
-        />
-      );
-    }
-
-    // Handle different field types
-    switch (field.type.toLowerCase()) {
-      case 'url':
-        return (
-          <Group gap="xs">
-            <Text size="sm" truncate style={{ maxWidth: 200 }}>
-              {String(value)}
-            </Text>
-            <ActionIcon
-              size="sm"
-              variant="subtle"
-              component="a"
-              href={String(value)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <IconExternalLink size={12} />
-            </ActionIcon>
-          </Group>
-        );
-      
-      case 'email':
-        return (
-          <Group gap="xs">
-            <Text size="sm">{String(value)}</Text>
-            <ActionIcon
-              size="sm"
-              variant="subtle"
-              component="a"
-              href={`mailto:${value}`}
-            >
-              <IconExternalLink size={12} />
-            </ActionIcon>
-          </Group>
-        );
-      
-      case 'phone':
-        return (
-          <Group gap="xs">
-            <Text size="sm">{String(value)}</Text>
-            <ActionIcon
-              size="sm"
-              variant="subtle"
-              component="a"
-              href={`tel:${value}`}
-            >
-              <IconExternalLink size={12} />
-            </ActionIcon>
-          </Group>
-        );
-      
-      case 'boolean':
-        return (
-          <Badge 
-            size="sm" 
-            color={value ? 'green' : 'red'} 
-            variant="light"
-          >
-            {value ? 'True' : 'False'}
-          </Badge>
-        );
-      
-      case 'date':
-      case 'datetime':
-        return (
-          <Group gap="xs">
-            <IconCalendar size={14} />
-            <Text size="sm">
-              {new Date(value).toLocaleString()}
-            </Text>
-          </Group>
-        );
-      
-      case 'currency':
-      case 'percent':
-        return (
-          <Text size="sm" fw={500}>
-            {field.type.toLowerCase() === 'currency' ? '$' : ''}
-            {Number(value).toLocaleString()}
-            {field.type.toLowerCase() === 'percent' ? '%' : ''}
-          </Text>
-        );
-      
-      case 'picklist':
-      case 'multipicklist':
-        return (
-          <Badge size="sm" color="blue" variant="light">
-            {String(value)}
-          </Badge>
-        );
-      
-      default:
-        return (
-          <Text size="sm" style={{ wordBreak: 'break-word' }}>
-            {String(value)}
-          </Text>
-        );
-    }
-  };
-
   const getFieldsBySection = (fields: SalesforceField[], record: Record<string, any>) => {
     const systemFields = ['Id', 'CreatedDate', 'LastModifiedDate', 'CreatedBy', 'LastModifiedBy'];
-    const standardFields = fields.filter(f => !f.custom && !systemFields.includes(f.name));
-    const customFields = fields.filter(f => f.custom);
-    const systemFieldsData = fields.filter(f => systemFields.includes(f.name) || systemFields.some(sf => f.name.startsWith(sf)));
+    
+    // Filter fields based on search term
+    const filteredFields = fields.filter((field) => {
+      if (!debouncedFieldSearchTerm) return true;
+      const searchLower = debouncedFieldSearchTerm.toLowerCase();
+      return (
+        field.name.toLowerCase().includes(searchLower) ||
+        field.label.toLowerCase().includes(searchLower) ||
+        field.type.toLowerCase().includes(searchLower)
+      );
+    });
+    
+    const identifierFields = filteredFields.filter(f => 
+      f.name === 'Name' || f.name === 'Subject' || f.name === 'Title' || 
+      f.externalId || f.unique || f.name.toLowerCase().includes('name') ||
+      (f.type.toLowerCase() === 'reference' && !systemFields.includes(f.name))
+    );
+    const standardFields = filteredFields.filter(f => 
+      !f.custom && 
+      !systemFields.includes(f.name) && 
+      !identifierFields.some(id => id.name === f.name)
+    );
+    const customFields = filteredFields.filter(f => f.custom);
+    const systemFieldsData = filteredFields.filter(f => systemFields.includes(f.name) || systemFields.some(sf => f.name.startsWith(sf)));
 
-    return { standardFields, customFields, systemFieldsData };
+    return { identifierFields, standardFields, customFields, systemFieldsData };
   };
-
-  // Theme-aware colors
-  const borderColor = colorScheme === 'dark' ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-3)';
 
   if (loading) {
     return (
-      <Center style={{ height: '50vh' }}>
+      <Center style={{ height: '60vh' }}>
         <Stack align="center" gap="md">
           <Loader size="lg" />
           <Text c="dimmed">Loading record details...</Text>
@@ -243,25 +424,25 @@ export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
 
   if (error) {
     return (
-      <Stack gap="lg" py="md">
-        <Alert color="red" title="Error Loading Record">
+      <Box p="lg">
+        <Alert color="red" title="Error Loading Record" mb="md">
           {error}
         </Alert>
         <Group>
           <Button leftSection={<IconRefresh size={16} />} onClick={loadRecord}>
             Retry
           </Button>
-          <Button variant="light" onClick={() => router.back()}>
+          <Button variant="light" leftSection={<IconArrowLeft size={16} />} onClick={() => router.back()}>
             Go Back
           </Button>
         </Group>
-      </Stack>
+      </Box>
     );
   }
 
   if (!recordData) {
     return (
-      <Center style={{ height: '50vh' }}>
+      <Center style={{ height: '60vh' }}>
         <Stack align="center" gap="md">
           <IconEye size={48} color="var(--mantine-color-gray-4)" />
           <Text c="dimmed">Record not found</Text>
@@ -271,238 +452,162 @@ export function RecordDetail({ objectType, recordId }: RecordDetailProps) {
   }
 
   const { record, metadata } = recordData;
-  const { standardFields, customFields, systemFieldsData } = getFieldsBySection(metadata.fields, record);
+  const { identifierFields, standardFields, customFields, systemFieldsData } = getFieldsBySection(metadata.fields, record);
   const recordName = record.Name || record.Subject || record.Title || recordId;
 
   return (
-    <div style={{ height: 'calc(100vh - 60px - 2rem)', display: 'flex', flexDirection: 'column' }}>
-      <Stack gap="lg" py="md" style={{ flex: 1, minHeight: 0 }}>
-        {/* Header */}
-        <div>
-          <Group justify="space-between" align="flex-start">
-            <div>
-              <Group gap="xs" mb="xs">
-                <ObjectLink
-                  objectName={metadata.name}
-                  label={metadata.label}
-                  showPreview={false}
-                  size="md"
-                />
-                {metadata.custom && <Badge color="orange">Custom</Badge>}
-              </Group>
-              <Title order={2} mb="xs">
-                {recordName}
-              </Title>
-              <Text size="sm" c="dimmed" ff="monospace">
-                ID: {recordId}
-              </Text>
-            </div>
-            <Group>
-              <Tooltip label="Copy Record ID">
-                <ActionIcon
-                  variant="light"
-                  onClick={() => copyToClipboard(recordId, 'Record ID')}
-                >
-                  <IconCopy size={16} />
-                </ActionIcon>
-              </Tooltip>
-              <Button
-                leftSection={<IconRefresh size={16} />}
-                variant="light"
-                onClick={loadRecord}
-              >
-                Refresh
-              </Button>
-              <Button
-                leftSection={<IconEdit size={16} />}
-                variant="filled"
-                disabled
-              >
-                Edit (Coming Soon)
-              </Button>
-            </Group>
-          </Group>
-        </div>
-
-        {/* Content */}
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <ScrollArea style={{ height: '100%' }}>
-            <Stack gap="lg">
-              {/* System Fields */}
-              <Card withBorder>
-                <Stack gap="md">
+    <Box style={{ height: 'calc(100vh - 60px - 2rem)' }}>
+      <ScrollArea style={{ height: '100%' }}>
+        <Box p="lg">
+          {/* Header Card */}
+          <Card withBorder mb="lg" p="lg">
+            <Group justify="space-between" align="flex-start" mb="md">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="md" mb="sm">
+                  <UnstyledButton onClick={() => router.back()}>
+                    <Group gap="xs">
+                      <IconArrowLeft size={16} />
+                      <Text size="sm" c="dimmed">Back</Text>
+                    </Group>
+                  </UnstyledButton>
+                  <Text size="sm" c="dimmed">/</Text>
+                  <ObjectLink
+                    objectName={metadata.name}
+                    label={metadata.label}
+                    showPreview={false}
+                    size="sm"
+                  />
+                  {metadata.custom && <Badge color="orange" variant="light">Custom Object</Badge>}
+                </Group>
+                <Title order={2} mb="xs" c={colorScheme === 'dark' ? 'white' : 'dark'}>
+                  {recordName}
+                </Title>
+                <Group gap="lg">
                   <Group gap="xs">
-                    <IconKey size={16} />
-                    <Text fw={500}>System Information</Text>
+                    <Text size="sm" c="dimmed">Record ID:</Text>
+                    <Text size="sm" ff="monospace">{recordId}</Text>
+                    <Tooltip label="Copy Record ID">
+                      <ActionIcon size="sm" variant="subtle" onClick={() => copyToClipboard(recordId, 'Record ID')}>
+                        <IconCopy size={12} />
+                      </ActionIcon>
+                    </Tooltip>
                   </Group>
-                  <Table>
-                    <Table.Tbody>
-                      {systemFieldsData
-                        .filter(field => record[field.name] !== undefined)
-                        .map((field) => (
-                          <Table.Tr key={field.name}>
-                            <Table.Td style={{ width: 200 }}>
-                              <Group gap="xs">
-                                {getFieldTypeIcon(field.type)}
-                                <Text size="sm" fw={500}>
-                                  {field.label}
-                                </Text>
-                              </Group>
-                            </Table.Td>
-                            <Table.Td>
-                              {formatFieldValue(field, record[field.name])}
-                            </Table.Td>
-                            <Table.Td style={{ width: 100 }}>
-                              <Group gap="xs">
-                                <Badge 
-                                  size="xs" 
-                                  color={getFieldTypeColor(field.type)} 
-                                  variant="light"
-                                >
-                                  {field.type}
-                                </Badge>
-                                <Tooltip label="Copy field value">
-                                  <ActionIcon
-                                    size="sm"
-                                    variant="subtle"
-                                    onClick={() => 
-                                      copyToClipboard(
-                                        String(record[field.name] || ''), 
-                                        field.label
-                                      )
-                                    }
-                                  >
-                                    <IconCopy size={12} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              </Group>
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
-                    </Table.Tbody>
-                  </Table>
+                  <Group gap="xs">
+                    <Text size="sm" c="dimmed">Object API:</Text>
+                    <Text size="sm" ff="monospace">{metadata.name}</Text>
+                  </Group>
+                </Group>
+              </div>
+              <Group>
+                <Button leftSection={<IconRefresh size={16} />} variant="light" onClick={loadRecord}>
+                  Refresh
+                </Button>
+                <Button leftSection={<IconEdit size={16} />} disabled>
+                  Edit
+                </Button>
+              </Group>
+            </Group>
+          </Card>
+
+          <Grid>
+            {/* Key Information */}
+            {identifierFields.some(field => record[field.name] !== undefined) && (
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Card withBorder h="100%">
+                  <Group gap="xs" mb="md">
+                    <IconLink size={18} />
+                    <Text fw={600}>Key Information</Text>
+                  </Group>
+                  <Stack gap="sm">
+                    {identifierFields
+                      .filter(field => record[field.name] !== undefined)
+                      .map((field) => (
+                        <FieldRow
+                          key={field.name}
+                          field={field}
+                          value={record[field.name]}
+                          onCopy={copyToClipboard}
+                        />
+                      ))}
+                  </Stack>
+                </Card>
+              </Grid.Col>
+            )}
+
+            {/* System Information */}
+            <Grid.Col span={{ base: 12, md: 6 }}>
+              <Card withBorder h="100%">
+                <Group gap="xs" mb="md">
+                  <IconCalendar size={18} />
+                  <Text fw={600}>System Information</Text>
+                </Group>
+                <Stack gap="sm">
+                  {systemFieldsData
+                    .filter(field => record[field.name] !== undefined)
+                    .map((field) => (
+                      <FieldRow
+                        key={field.name}
+                        field={field}
+                        value={record[field.name]}
+                        onCopy={copyToClipboard}
+                      />
+                    ))}
                 </Stack>
               </Card>
+            </Grid.Col>
 
-              {/* Standard Fields */}
-              {standardFields.some(field => record[field.name] !== undefined) && (
+            {/* Standard Fields */}
+            {standardFields.some(field => record[field.name] !== undefined) && (
+              <Grid.Col span={12}>
                 <Card withBorder>
-                  <Stack gap="md">
-                    <Group gap="xs">
-                      <IconTable size={16} />
-                      <Text fw={500}>Standard Fields</Text>
-                    </Group>
-                    <Table>
-                      <Table.Tbody>
-                        {standardFields
-                          .filter(field => record[field.name] !== undefined)
-                          .map((field) => (
-                            <Table.Tr key={field.name}>
-                              <Table.Td style={{ width: 200 }}>
-                                <Group gap="xs">
-                                  {getFieldTypeIcon(field.type)}
-                                  <Text size="sm" fw={500}>
-                                    {field.label}
-                                  </Text>
-                                </Group>
-                              </Table.Td>
-                              <Table.Td>
-                                {formatFieldValue(field, record[field.name])}
-                              </Table.Td>
-                              <Table.Td style={{ width: 100 }}>
-                                <Group gap="xs">
-                                  <Badge 
-                                    size="xs" 
-                                    color={getFieldTypeColor(field.type)} 
-                                    variant="light"
-                                  >
-                                    {field.type}
-                                  </Badge>
-                                  <Tooltip label="Copy field value">
-                                    <ActionIcon
-                                      size="sm"
-                                      variant="subtle"
-                                      onClick={() => 
-                                        copyToClipboard(
-                                          String(record[field.name] || ''), 
-                                          field.label
-                                        )
-                                      }
-                                    >
-                                      <IconCopy size={12} />
-                                    </ActionIcon>
-                                  </Tooltip>
-                                </Group>
-                              </Table.Td>
-                            </Table.Tr>
-                          ))}
-                      </Table.Tbody>
-                    </Table>
-                  </Stack>
+                  <Group gap="xs" mb="md">
+                    <IconEye size={18} />
+                    <Text fw={600}>Standard Fields</Text>
+                  </Group>
+                  <Grid>
+                    {standardFields
+                      .filter(field => record[field.name] !== undefined)
+                      .map((field) => (
+                        <Grid.Col key={field.name} span={{ base: 12, sm: 6, lg: 4 }}>
+                          <FieldRow
+                            field={field}
+                            value={record[field.name]}
+                            onCopy={copyToClipboard}
+                          />
+                        </Grid.Col>
+                      ))}
+                  </Grid>
                 </Card>
-              )}
+              </Grid.Col>
+            )}
 
-              {/* Custom Fields */}
-              {customFields.some(field => record[field.name] !== undefined) && (
+            {/* Custom Fields */}
+            {customFields.some(field => record[field.name] !== undefined) && (
+              <Grid.Col span={12}>
                 <Card withBorder>
-                  <Stack gap="md">
-                    <Group gap="xs">
-                      <IconUser size={16} />
-                      <Text fw={500}>Custom Fields</Text>
-                    </Group>
-                    <Table>
-                      <Table.Tbody>
-                        {customFields
-                          .filter(field => record[field.name] !== undefined)
-                          .map((field) => (
-                            <Table.Tr key={field.name}>
-                              <Table.Td style={{ width: 200 }}>
-                                <Group gap="xs">
-                                  {getFieldTypeIcon(field.type)}
-                                  <Text size="sm" fw={500}>
-                                    {field.label}
-                                  </Text>
-                                </Group>
-                              </Table.Td>
-                              <Table.Td>
-                                {formatFieldValue(field, record[field.name])}
-                              </Table.Td>
-                              <Table.Td style={{ width: 100 }}>
-                                <Group gap="xs">
-                                  <Badge 
-                                    size="xs" 
-                                    color={getFieldTypeColor(field.type)} 
-                                    variant="light"
-                                  >
-                                    {field.type}
-                                  </Badge>
-                                  <Tooltip label="Copy field value">
-                                    <ActionIcon
-                                      size="sm"
-                                      variant="subtle"
-                                      onClick={() => 
-                                        copyToClipboard(
-                                          String(record[field.name] || ''), 
-                                          field.label
-                                        )
-                                      }
-                                    >
-                                      <IconCopy size={12} />
-                                    </ActionIcon>
-                                  </Tooltip>
-                                </Group>
-                              </Table.Td>
-                            </Table.Tr>
-                          ))}
-                      </Table.Tbody>
-                    </Table>
-                  </Stack>
+                  <Group gap="xs" mb="md">
+                    <IconEdit size={18} />
+                    <Text fw={600}>Custom Fields</Text>
+                  </Group>
+                  <Grid>
+                    {customFields
+                      .filter(field => record[field.name] !== undefined)
+                      .map((field) => (
+                        <Grid.Col key={field.name} span={{ base: 12, sm: 6, lg: 4 }}>
+                          <FieldRow
+                            field={field}
+                            value={record[field.name]}
+                            onCopy={copyToClipboard}
+                          />
+                        </Grid.Col>
+                      ))}
+                  </Grid>
                 </Card>
-              )}
-            </Stack>
-          </ScrollArea>
-        </div>
-      </Stack>
-    </div>
+              </Grid.Col>
+            )}
+          </Grid>
+        </Box>
+      </ScrollArea>
+    </Box>
   );
 }

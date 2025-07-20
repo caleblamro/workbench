@@ -161,19 +161,46 @@ const renderResultTable = ({
                 {filteredHeaders.map((header) => (
                   <Table.Td key={header}>
                     {header === 'Id' && record[header] && record.attributes?.type ? (
-                      <RecordLink
-                        objectType={record.attributes.type}
-                        recordId={record[header]}
-                        label={record[header]}
-                        size="sm"
-                        truncate
-                      />
+                      <div>
+                        <RecordLink
+                          objectType={record.attributes.type}
+                          recordId={record[header]}
+                          label={record[header]}
+                          size="sm"
+                          truncate
+                        />
+                        <Text size="xs" c="dimmed" ff="monospace">
+                          {header}
+                        </Text>
+                      </div>
+                    ) : header.endsWith('Id') && record[header] && typeof record[header] === 'string' && record[header].length >= 15 ? (
+                      // Handle other ID fields (lookup/reference fields)
+                      <div>
+                        <Text size="sm" ff="monospace" truncate>
+                          {record[header]}
+                        </Text>
+                        <Text size="xs" c="dimmed" ff="monospace">
+                          {header}
+                        </Text>
+                      </div>
                     ) : record[header] === null || record[header] === undefined ? (
-                      ''
+                      <Text size="sm" c="dimmed" fs="italic">null</Text>
                     ) : typeof record[header] === 'object' ? (
-                      JSON.stringify(record[header])
+                      <div>
+                        <Text size="sm" ff="monospace">
+                          {JSON.stringify(record[header])}
+                        </Text>
+                        <Text size="xs" c="dimmed" ff="monospace">
+                          {header}
+                        </Text>
+                      </div>
                     ) : (
-                      String(record[header])
+                      <div>
+                        <Text size="sm">{String(record[header])}</Text>
+                        <Text size="xs" c="dimmed" ff="monospace">
+                          {header}
+                        </Text>
+                      </div>
                     )}
                   </Table.Td>
                 ))}

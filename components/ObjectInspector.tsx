@@ -69,6 +69,9 @@ export function ObjectInspector() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
+  const [isSearching, setIsSearching] = useState(false);
+  const [fieldSearchTerm, setFieldSearchTerm] = useState('');
+  const [debouncedFieldSearchTerm] = useDebouncedValue(fieldSearchTerm, 300);
   const [filterType, setFilterType] = useState<string | null>('all');
   const [showCustomOnly, setShowCustomOnly] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -81,8 +84,12 @@ export function ObjectInspector() {
   }, []);
 
   useEffect(() => {
-    filterObjects();
-  }, [allObjects, debouncedSearchTerm, filterType, showCustomOnly]);
+    if (debouncedSearchTerm) {
+      searchObjects();
+    } else {
+      loadInitialObjects();
+    }
+  }, [debouncedSearchTerm, filterType, showCustomOnly]);
 
   // Handle URL parameter for selected object
   useEffect(() => {
@@ -106,6 +113,7 @@ export function ObjectInspector() {
       }
       const data: ObjectsResponse = await response.json();
       setAllObjects(data.sobjects || []);
+      setFilteredObjects(data.sobjects || []);
       setHasMore(data.hasMore);
       setTotalCount(data.totalCount);
       setNextOffset(data.nextOffset);
@@ -182,42 +190,42 @@ export function ObjectInspector() {
     }
   };
 
-  const filterObjects = () => {
-    let filtered = [...allObjects];
+  const searchObjects = async () => {
+    setIsSearching(true);
+    setError(null);
 
-    // Filter by search term
-    if (debouncedSearchTerm) {
-      filtered = filtered.filter(
-        (obj) =>
-          obj.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-          obj.label.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-      );
-    }
+    try {
+      const params = new URLSearchParams({
+        limit: '100',
+        offset: '0',
+        filter: filterType || 'all',
+      });
 
-    // Filter by type
-    if (filterType && filterType !== 'all') {
-      switch (filterType) {
-        case 'custom':
-          filtered = filtered.filter((obj) => obj.custom);
-          break;
-        case 'standard':
-          filtered = filtered.filter((obj) => !obj.custom);
-          break;
-        case 'queryable':
-          filtered = filtered.filter((obj) => obj.queryable);
-          break;
-        case 'createable':
-          filtered = filtered.filter((obj) => obj.createable);
-          break;
+      if (debouncedSearchTerm) {
+        params.set('search', debouncedSearchTerm);
       }
-    }
 
-    // Show custom only filter
-    if (showCustomOnly) {
-      filtered = filtered.filter((obj) => obj.custom);
+      const response = await fetch(`/api/salesforce/objects-search?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to search objects');
+      }
+      const data: ObjectsResponse = await response.json();
+      setAllObjects(data.sobjects || []);
+      setFilteredObjects(data.sobjects || []);
+      setHasMore(data.hasMore);
+      setTotalCount(data.totalCount);
+      setNextOffset(data.nextOffset);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      notifications.show({
+        title: 'Error',
+        message: errorMessage,
+        color: 'red',
+      });
+    } finally {
+      setIsSearching(false);
     }
-
-    setFilteredObjects(filtered);
   };
 
   const handleObjectSelect = (objectName: string) => {
@@ -299,6 +307,7 @@ export function ObjectInspector() {
         </Button>
         <Text size="sm" c="dimmed">
           {filteredObjects.length} of {totalCount} objects
+          {debouncedSearchTerm && ` (searching: "${debouncedSearchTerm}")`}
         </Text>
       </Group>
 
@@ -359,9 +368,12 @@ export function ObjectInspector() {
 
           <ScrollArea style={{ flex: 1 }} ref={scrollAreaRef} onScrollPositionChange={handleScroll}>
             <div style={{ padding: '0.5rem' }}>
-              {isLoadingObjects ? (
+              {isLoadingObjects || isSearching ? (
                 <Center py="xl">
                   <Loader size="md" />
+                  <Text size="sm" c="dimmed">
+                    {isSearching ? 'Searching objects...' : 'Loading objects...'}
+                  </Text>
                 </Center>
               ) : (
                 <Stack gap="xs">
@@ -457,7 +469,7 @@ export function ObjectInspector() {
             >
               <Stack align="center" gap="md">
                 <Loader size="lg" />
-                <Text c="dimmed">Loading object metadata...</Text>
+                <Text c="dimmed">Loading metadata...</Text>
               </Stack>
             </div>
           ) : objectMetadata ? (
@@ -510,85 +522,126 @@ export function ObjectInspector() {
                     <Tabs.Panel value="fields" pt="md">
                       <Stack gap="md">
                         <Card withBorder>
-                          <Table striped highlightOnHover>
-                            <Table.Thead>
-                              <Table.Tr>
-                                <Table.Th>Field Label</Table.Th>
-                                <Table.Th>API Name</Table.Th>
-                                <Table.Th>Type</Table.Th>
-                                <Table.Th>Properties</Table.Th>
-                                <Table.Th>Actions</Table.Th>
-                              </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                              {objectMetadata.fields.map((field) => (
-                                <Table.Tr key={field.name}>
-                                  <Table.Td>
-                                    <Group gap="xs">
-                                      {getFieldTypeIcon(field.type)}
-                                      <Text size="sm" fw={field.name === 'Id' ? 500 : undefined}>
-                                        {field.label}
-                                      </Text>
-                                    </Group>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    <Text size="sm" ff="monospace">
-                                      {field.name}
-                                    </Text>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    <Badge
+                          <Stack gap="md">
+                            <Group justify="space-between">
+                              <Text fw={500}>Fields ({objectMetadata.fields.length})</Text>
+                              <TextInput
+                                placeholder="Search fields..."
+                                leftSection={<IconSearch size={14} />}
+                                value={fieldSearchTerm}
+                                onChange={(e) => setFieldSearchTerm(e.currentTarget.value)}
+                                rightSection={
+                                  fieldSearchTerm ? (
+                                    <ActionIcon
                                       size="sm"
-                                      color={getFieldTypeColor(field.type)}
-                                      variant="light"
+                                      variant="subtle"
+                                      onClick={() => setFieldSearchTerm('')}
                                     >
-                                      {field.type}
-                                    </Badge>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    <Group gap="xs">
-                                      {field.custom && (
-                                        <Badge size="xs" color="orange">
-                                          Custom
-                                        </Badge>
-                                      )}
-                                      {field.unique && (
-                                        <Badge size="xs" color="purple">
-                                          Unique
-                                        </Badge>
-                                      )}
-                                      {field.externalId && (
-                                        <Badge size="xs" color="red">
-                                          External ID
-                                        </Badge>
-                                      )}
-                                      {!field.nillable && (
-                                        <Badge size="xs" color="blue">
-                                          Required
-                                        </Badge>
-                                      )}
-                                      {field.calculated && (
-                                        <Badge size="xs" color="gray">
-                                          Calculated
-                                        </Badge>
-                                      )}
-                                    </Group>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    <Tooltip label="Copy field name">
-                                      <ActionIcon
-                                        size="sm"
-                                        variant="subtle"
-                                        onClick={() => copyToClipboard(field.name, 'Field name')}
-                                      >
-                                        <IconCopy size={14} />
-                                      </ActionIcon>
-                                    </Tooltip>
-                                  </Table.Td>
+                                      <IconX size={12} />
+                                    </ActionIcon>
+                                  ) : null
+                                }
+                                size="sm"
+                                style={{ width: 250 }}
+                              />
+                            </Group>
+                            <Table striped highlightOnHover>
+                              <Table.Thead>
+                                <Table.Tr>
+                                  <Table.Th>Field Label</Table.Th>
+                                  <Table.Th>API Name</Table.Th>
+                                  <Table.Th>Type</Table.Th>
+                                  <Table.Th>Properties</Table.Th>
+                                  <Table.Th>Actions</Table.Th>
                                 </Table.Tr>
-                              ))}
-                            </Table.Tbody>
-                          </Table>
+                              </Table.Thead>
+                              <Table.Tbody>
+                                {objectMetadata.fields
+                                  .filter((field) => {
+                                    if (!debouncedFieldSearchTerm) {
+                                      return true;
+                                    }
+                                    const searchLower = debouncedFieldSearchTerm.toLowerCase();
+                                    return (
+                                      field.name.toLowerCase().includes(searchLower) ||
+                                      field.label.toLowerCase().includes(searchLower) ||
+                                      field.type.toLowerCase().includes(searchLower)
+                                    );
+                                  })
+                                  .map((field) => (
+                                    <Table.Tr key={field.name}>
+                                      <Table.Td>
+                                        <Group gap="xs">
+                                          {getFieldTypeIcon(field.type)}
+                                          <Text
+                                            size="sm"
+                                            fw={field.name === 'Id' ? 500 : undefined}
+                                          >
+                                            {field.label}
+                                          </Text>
+                                        </Group>
+                                      </Table.Td>
+                                      <Table.Td>
+                                        <Text size="sm" ff="monospace">
+                                          {field.name}
+                                        </Text>
+                                      </Table.Td>
+                                      <Table.Td>
+                                        <Badge
+                                          size="xs"
+                                          color={getFieldTypeColor(field.type)}
+                                          variant="dot"
+                                        >
+                                          {field.type}
+                                        </Badge>
+                                      </Table.Td>
+                                      <Table.Td>
+                                        <Group gap="xs">
+                                          {field.custom && (
+                                            <Badge size="xs" color="orange">
+                                              Custom
+                                            </Badge>
+                                          )}
+                                          {field.unique && (
+                                            <Badge size="xs" color="purple">
+                                              Unique
+                                            </Badge>
+                                          )}
+                                          {field.externalId && (
+                                            <Badge size="xs" color="red">
+                                              External ID
+                                            </Badge>
+                                          )}
+                                          {!field.nillable && (
+                                            <Badge size="xs" color="blue">
+                                              Required
+                                            </Badge>
+                                          )}
+                                          {field.calculated && (
+                                            <Badge size="xs" color="gray">
+                                              Calculated
+                                            </Badge>
+                                          )}
+                                        </Group>
+                                      </Table.Td>
+                                      <Table.Td>
+                                        <Tooltip label="Copy field name">
+                                          <ActionIcon
+                                            size="sm"
+                                            variant="subtle"
+                                            onClick={() =>
+                                              copyToClipboard(field.name, 'Field name')
+                                            }
+                                          >
+                                            <IconCopy size={14} />
+                                          </ActionIcon>
+                                        </Tooltip>
+                                      </Table.Td>
+                                    </Table.Tr>
+                                  ))}
+                              </Table.Tbody>
+                            </Table>
+                          </Stack>
                         </Card>
                       </Stack>
                     </Tabs.Panel>
