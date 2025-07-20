@@ -75,10 +75,7 @@ function isValidCacheEntry(entry: CachedMetadata): boolean {
 /**
  * Get cached metadata if available and valid
  */
-export function getCachedMetadata(
-  instanceUrl: string,
-  objectType: string
-): ObjectMetadata | null {
+export function getCachedMetadata(instanceUrl: string, objectType: string): ObjectMetadata | null {
   const cacheKey = getCacheKey(instanceUrl, objectType);
   const cached = metadataCache.get(cacheKey);
 
@@ -153,28 +150,27 @@ export function clearMetadataCache(): void {
  * Clear cached metadata for specific instance
  */
 export function clearInstanceCache(instanceUrl: string): void {
-  for (const [key] of metadataCache) {
+  metadataCache.forEach((_value, key) => {
     if (key.startsWith(`${instanceUrl}:`)) {
       metadataCache.delete(key);
     }
-  }
+  });
 }
 
 /**
  * Get cache statistics
  */
 export function getCacheStats() {
-  const now = Date.now();
   let validEntries = 0;
   let expiredEntries = 0;
 
-  for (const [, entry] of metadataCache) {
-    if (isValidCacheEntry(entry)) {
+  metadataCache.forEach((v) => {
+    if (isValidCacheEntry(v)) {
       validEntries++;
     } else {
       expiredEntries++;
     }
-  }
+  });
 
   return {
     total: metadataCache.size,

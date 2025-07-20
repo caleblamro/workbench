@@ -1,5 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getSalesforceConnection, salesforceApiCall, getObjectMetadata } from '../../../../../lib/salesforce';
+import {
+  getObjectMetadata,
+  getSalesforceConnection,
+  salesforceApiCall,
+} from '../../../../../lib/salesforce';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -24,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // First, get the object metadata to determine available fields
     const metadata = await getObjectMetadata(connection, objectType);
-    
+
     // Get all queryable fields (keep it simple)
     const queryableFields = metadata.fields
       .filter((field: any) => !field.calculated)
@@ -32,7 +36,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Always include essential fields
     const essentialFields = ['Id', 'CreatedDate', 'LastModifiedDate'];
-    const allFields = [...new Set([...essentialFields, ...queryableFields])];
+    const set = new Set([...essentialFields, ...queryableFields]);
+    const mappedSet: any[] = [];
+
+    set.forEach((value) => {
+      mappedSet.push(value);
+    });
+
+    const allFields = [...mappedSet];
 
     // Build SOQL query
     const soqlQuery = `SELECT ${allFields.join(', ')} FROM ${objectType} WHERE Id = '${recordId}' LIMIT 1`;
@@ -64,8 +75,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         label: metadata.label,
         labelPlural: metadata.labelPlural,
         custom: metadata.custom,
-        fields: metadata.fields
-      }
+        fields: metadata.fields,
+      },
     });
   } catch (error) {
     console.error('Error fetching record:', error);
