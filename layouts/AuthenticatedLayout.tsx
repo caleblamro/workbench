@@ -96,7 +96,6 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
       icon: <IconSearch size={16} />,
       label: 'Object Inspector',
       href: '/objects',
-      disabled: true,
     },
     {
       icon: <IconApi size={16} />,

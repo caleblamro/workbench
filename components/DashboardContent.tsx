@@ -96,7 +96,11 @@ export function DashboardContent() {
             >
               Query Data
             </Button>
-            <Button variant="light" leftSection={<IconSearch size={16} />} disabled>
+            <Button 
+              variant="light" 
+              leftSection={<IconSearch size={16} />}
+              onClick={() => router.push('/objects')}
+            >
               Object Inspector
             </Button>
             <Button variant="light" leftSection={<IconApi size={16} />} disabled>
