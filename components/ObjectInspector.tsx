@@ -401,7 +401,7 @@ export function ObjectInspector() {
                       <Group justify="space-between" wrap="nowrap">
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <Group gap="xs">
-                            <IconTable size={16} color={obj.custom ? 'orange' : 'gray'} />
+                            <IconTable size={16} color={obj.custom ? 'blue' : 'gray'} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <Text size="sm" fw={500} truncate>
                                 {obj.label}
@@ -414,7 +414,7 @@ export function ObjectInspector() {
                         </div>
                         <Group gap="xs">
                           {obj.custom && (
-                            <Badge size="xs" color="orange">
+                            <Badge size="xs" color="blue">
                               Custom
                             </Badge>
                           )}
@@ -500,9 +500,9 @@ export function ObjectInspector() {
                 <Group justify="space-between">
                   <div>
                     <Group gap="xs">
-                      <IconTable size={20} color={objectMetadata.custom ? 'orange' : 'gray'} />
+                      <IconTable size={20} color={objectMetadata.custom ? 'blue' : 'gray'} />
                       <Title order={3}>{objectMetadata.label}</Title>
-                      {objectMetadata.custom && <Badge color="orange">Custom</Badge>}
+                      {objectMetadata.custom && <Badge color="blue">Custom</Badge>}
                     </Group>
                     <Text size="sm" c="dimmed">
                       {objectMetadata.name}
@@ -619,7 +619,7 @@ export function ObjectInspector() {
                                       <Table.Td>
                                         <Group gap="xs">
                                           {field.custom && (
-                                            <Badge size="xs" color="orange">
+                                            <Badge size="xs" color="blue">
                                               Custom
                                             </Badge>
                                           )}
