@@ -78,15 +78,138 @@ const EXAMPLE_QUERIES = [
   },
 ];
 
-const exportToCSV = ({ result }: { result: QueryResult }) => {
+// Function to flatten nested objects and create proper column structure
+const flattenRecord = (record: Record<string, any>) => {
+  const flattened: Record<string, any> = {};
+
+  const flatten = (obj: any, prefix: string = '') => {
+    for (const key in obj) {
+      if (key === 'attributes') {
+        continue;
+      } // Skip Salesforce attributes
+
+      const value = obj[key];
+      const newKey = prefix ? `${prefix}.${key}` : key;
+
+      if (value && typeof value === 'object' && !Array.isArray(value) && value.attributes) {
+        // This is a Salesforce relationship object, flatten it
+        flatten(value, newKey.replace(`.${key}`, key));
+      } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+        // Regular nested object
+        flatten(value, newKey);
+      } else {
+        // Primitive value
+        flattened[newKey] = value;
+      }
+    }
+  };
+
+  flatten(record);
+  return flattened;
+};
+
+// Function to parse SOQL SELECT clause and extract field order
+const parseSelectFields = (query: string): string[] => {
+  try {
+    // Remove comments and normalize whitespace
+    const cleanQuery = query.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Find the SELECT clause (case insensitive)
+    const selectMatch = cleanQuery.match(/SELECT\s+(.*?)\s+FROM\s+/i);
+    if (!selectMatch) {
+      return [];
+    }
+
+    const selectClause = selectMatch[1];
+
+    // Split by comma, but be careful about nested parentheses (for functions)
+    const fields: string[] = [];
+    let current = '';
+    let parenCount = 0;
+
+    for (const char of selectClause) {
+      if (char === '(') {
+        parenCount++;
+      } else if (char === ')') {
+        parenCount--;
+      } else if (char === ',' && parenCount === 0) {
+        fields.push(current.trim());
+        current = '';
+        continue;
+      }
+      current += char;
+    }
+    if (current.trim()) {
+      fields.push(current.trim());
+    }
+
+    // Clean up fields - remove aliases and normalize
+    return fields.map((field) => {
+      // Remove aliases (everything after AS or whitespace before a word)
+      const cleanField = field.replace(/\s+AS\s+\w+$/i, '').trim();
+      return cleanField;
+    });
+  } catch (error) {
+    console.warn('Failed to parse SELECT fields:', error);
+    return [];
+  }
+};
+
+// Function to get all possible column headers from flattened records
+const getFlattenedHeaders = (records: Array<Record<string, any>>, query?: string) => {
+  const headerSet = new Set<string>();
+
+  records.forEach((record) => {
+    const flattened = flattenRecord(record);
+    Object.keys(flattened).forEach((key) => headerSet.add(key));
+  });
+
+  const allHeaders = Array.from(headerSet);
+
+  // If we have a query, try to maintain field order
+  if (query) {
+    const queryFields = parseSelectFields(query);
+    const orderedHeaders: string[] = [];
+    const remainingHeaders = new Set(allHeaders);
+
+    // First, add headers that match query field order
+    queryFields.forEach((queryField) => {
+      // Find exact matches first
+      if (remainingHeaders.has(queryField)) {
+        orderedHeaders.push(queryField);
+        remainingHeaders.delete(queryField);
+      } else {
+        // Look for relationship field matches (e.g., Account.Name)
+        const matchingHeaders = Array.from(remainingHeaders).filter(
+          (header) => header.startsWith(`${queryField}.`) || header === queryField
+        );
+        matchingHeaders.forEach((header) => {
+          orderedHeaders.push(header);
+          remainingHeaders.delete(header);
+        });
+      }
+    });
+
+    // Add any remaining headers that weren't in the query (shouldn't happen normally)
+    remainingHeaders.forEach((header) => orderedHeaders.push(header));
+
+    return orderedHeaders;
+  }
+
+  return allHeaders.sort();
+};
+
+const exportToCSV = ({ result, query }: { result: QueryResult; query?: string }) => {
   if (!result || !result.records.length) {
     return;
   }
 
-  const headers = Object.keys(result.records[0]);
+  const flattenedRecords = result.records.map(flattenRecord);
+  const headers = getFlattenedHeaders(result.records, query);
+
   const csvContent = [
     headers.join(','),
-    ...result.records.map((record) =>
+    ...flattenedRecords.map((record) =>
       headers
         .map((header) => {
           const value = record[header];
@@ -113,17 +236,37 @@ const exportToCSV = ({ result }: { result: QueryResult }) => {
 
 const renderResultTable = ({
   result,
+  query,
   showAttributes = false,
 }: {
   result: QueryResult;
+  query?: string;
   showAttributes?: boolean;
 }) => {
   if (!result || !result.records.length) {
     return null;
   }
 
-  const headers = Object.keys(result.records[0]);
-  const filteredHeaders = showAttributes ? headers : headers.filter((e) => e !== 'attributes');
+  const flattenedRecords = result.records.map(flattenRecord);
+  const allHeaders = getFlattenedHeaders(result.records, query);
+  const filteredHeaders = showAttributes
+    ? allHeaders
+    : allHeaders.filter((e) => e !== 'attributes');
+
+  // Helper function to determine if a field is an ID field
+  const isIdField = (header: string, value: any) => {
+    return (
+      (header === 'Id' || header.endsWith('Id')) &&
+      value &&
+      typeof value === 'string' &&
+      value.length >= 15
+    );
+  };
+
+  // Helper function to get object type for main record ID
+  const getObjectType = (originalRecord: Record<string, any>) => {
+    return originalRecord.attributes?.type;
+  };
 
   return (
     <Card withBorder>
@@ -140,7 +283,7 @@ const renderResultTable = ({
             size="sm"
             variant="light"
             leftSection={<IconDownload size={16} />}
-            onClick={() => exportToCSV({ result })}
+            onClick={() => exportToCSV({ result, query })}
           >
             Export CSV
           </Button>
@@ -157,14 +300,14 @@ const renderResultTable = ({
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {result.records.map((record, index) => (
+            {flattenedRecords.map((record, index) => (
               <Table.Tr key={index}>
                 {filteredHeaders.map((header) => (
                   <Table.Td key={header}>
-                    {header === 'Id' && record[header] && record.attributes?.type ? (
+                    {header === 'Id' && record[header] && getObjectType(result.records[index]) ? (
                       <div>
                         <RecordLink
-                          objectType={record.attributes.type}
+                          objectType={getObjectType(result.records[index])}
                           recordId={record[header]}
                           label={record[header]}
                           size="sm"
@@ -174,10 +317,7 @@ const renderResultTable = ({
                           {header}
                         </Text>
                       </div>
-                    ) : header.endsWith('Id') &&
-                      record[header] &&
-                      typeof record[header] === 'string' &&
-                      record[header].length >= 15 ? (
+                    ) : isIdField(header, record[header]) ? (
                       // Handle other ID fields (lookup/reference fields)
                       <div>
                         <Text size="sm" ff="monospace" truncate>
@@ -445,7 +585,7 @@ export function SOQLQueryTool() {
               </Alert>
             )}
 
-            {result && renderResultTable({ result })}
+            {result && renderResultTable({ result, query })}
           </Stack>
         </Tabs.Panel>
 

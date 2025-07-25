@@ -11,16 +11,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ message: 'Not authenticated' });
   }
 
-  const { 
-    search, 
-    limit = '50', 
-    offset = '0',
-    filter = 'all'
-  } = req.query;
+  const { search, limit = '50', offset = '0', filter = 'all' } = req.query;
 
   try {
     const response = await salesforceApiCall(connection, '/services/data/v58.0/sobjects/');
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch objects: ${response.statusText}`);
     }
@@ -31,10 +26,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Apply search filter
     if (search && typeof search === 'string') {
       const searchTerm = search.toLowerCase();
-      objects = objects.filter((obj: any) =>
-        obj.name.toLowerCase().includes(searchTerm) ||
-        obj.label.toLowerCase().includes(searchTerm) ||
-        obj.labelPlural.toLowerCase().includes(searchTerm)
+      objects = objects.filter(
+        (obj: any) =>
+          obj.name.toLowerCase().includes(searchTerm) ||
+          obj.label.toLowerCase().includes(searchTerm) ||
+          obj.labelPlural.toLowerCase().includes(searchTerm)
       );
     }
 
@@ -62,16 +58,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       objects.sort((a: any, b: any) => {
         const aExact = a.name.toLowerCase() === searchTerm || a.label.toLowerCase() === searchTerm;
         const bExact = b.name.toLowerCase() === searchTerm || b.label.toLowerCase() === searchTerm;
-        
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-        
-        const aStartsWith = a.name.toLowerCase().startsWith(searchTerm) || a.label.toLowerCase().startsWith(searchTerm);
-        const bStartsWith = b.name.toLowerCase().startsWith(searchTerm) || b.label.toLowerCase().startsWith(searchTerm);
-        
-        if (aStartsWith && !bStartsWith) return -1;
-        if (!aStartsWith && bStartsWith) return 1;
-        
+
+        if (aExact && !bExact) {
+          return -1;
+        }
+        if (!aExact && bExact) {
+          return 1;
+        }
+
+        const aStartsWith =
+          a.name.toLowerCase().startsWith(searchTerm) ||
+          a.label.toLowerCase().startsWith(searchTerm);
+        const bStartsWith =
+          b.name.toLowerCase().startsWith(searchTerm) ||
+          b.label.toLowerCase().startsWith(searchTerm);
+
+        if (aStartsWith && !bStartsWith) {
+          return -1;
+        }
+        if (!aStartsWith && bStartsWith) {
+          return 1;
+        }
+
         return a.label.localeCompare(b.label);
       });
     } else {
@@ -82,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const totalCount = objects.length;
     const offsetNum = parseInt(offset as string, 10);
     const limitNum = parseInt(limit as string, 10);
-    
+
     const paginatedObjects = objects.slice(offsetNum, offsetNum + limitNum);
     const hasMore = offsetNum + limitNum < totalCount;
     const nextOffset = hasMore ? offsetNum + limitNum : offsetNum;
