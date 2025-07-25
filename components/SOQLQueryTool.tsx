@@ -17,6 +17,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Group,
   Kbd,
   ScrollArea,
@@ -364,6 +365,7 @@ export function SOQLQueryTool() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [useBulkApi, setUseBulkApi] = useState(false);
   const [queryHistory, setQueryHistory] = useLocalStorage<QueryHistoryItem[]>({
     key: 'soql-query-history',
     defaultValue: [],
@@ -393,7 +395,7 @@ export function SOQLQueryTool() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query: query.trim() }),
+        body: JSON.stringify({ query: query.trim(), useBulkApi }),
       });
 
       const data = await response.json();
@@ -559,9 +561,11 @@ export function SOQLQueryTool() {
                   >
                     Execute Query
                   </Button>
-                  <Text size="sm" c="dimmed">
-                    Tip: Use LIMIT to avoid large result sets
-                  </Text>
+                  <Checkbox
+                    label="Use bulk API"
+                    checked={useBulkApi}
+                    onChange={(event) => setUseBulkApi(event.currentTarget.checked)}
+                  />
                 </Group>
               </Stack>
             </Card>
@@ -592,8 +596,8 @@ export function SOQLQueryTool() {
         <Tabs.Panel value="examples" pt="md">
           <Stack gap="md">
             <Text>Click on any example below to load it into the query editor:</Text>
-            {EXAMPLE_QUERIES.map((example, index) => (
-              <Card key={index} withBorder>
+            {EXAMPLE_QUERIES.map((example) => (
+              <Card key={example.name} withBorder>
                 <Stack gap="xs">
                   <Group justify="space-between">
                     <Text fw={500}>{example.name}</Text>
