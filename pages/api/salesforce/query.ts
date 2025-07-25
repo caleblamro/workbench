@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { executeQuery, getSalesforceConnection } from '../../../lib/salesforce';
+import { executeQuery, executeBulkQuery, getSalesforceConnection } from '../../../lib/salesforce';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -12,14 +12,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ message: 'Not authenticated' });
   }
 
-  const { query } = req.body;
+  const { query, useBulkApi = false } = req.body;
 
   if (!query || typeof query !== 'string') {
     return res.status(400).json({ message: 'Query is required' });
   }
 
   try {
-    const result = await executeQuery(connection, query);
+    const result = useBulkApi 
+      ? await executeBulkQuery(connection, query)
+      : await executeQuery(connection, query);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({
