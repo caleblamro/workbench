@@ -217,7 +217,7 @@ function parseCSVToRecords(csvText: string): Array<Record<string, any>> {
     const record: Record<string, any> = {};
 
     headers.forEach((header, index) => {
-      let value = values[index] || null;
+      let value: string | boolean | number | null = values[index] || null;
 
       // Convert empty strings to null
       if (value === '') {
