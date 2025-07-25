@@ -623,8 +623,7 @@ export function SOQLQueryTool() {
 
         <Tabs.Panel value="history" pt="md">
           <Stack gap="md">
-            <Group justify="space-between">
-              <Text>Recent queries:</Text>
+            <Group justify="flex-end">
               <Button
                 size="sm"
                 variant="light"
